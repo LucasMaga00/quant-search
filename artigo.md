@@ -2,72 +2,118 @@
 
 ## 1. Título provisório
 
-Viabilidade técnica e econômica da computação quântica no setor financeiro: condições de adoção e cenários de ampliação do acesso
+Custo de equilíbrio da estimação quântica de amplitude no recálculo intradiário do VaR de carteiras de opções
 
 ## 2. Problema de pesquisa
 
-A computação quântica tem sido investigada como alternativa para problemas financeiros de otimização, modelagem de incertezas e processamento numérico. A literatura discute, entre outras aplicações, a otimização de carteiras, a análise de risco e a precificação de ativos e derivativos. Executar um algoritmo quântico, ou demonstrar que ele tem complexidade menor, não basta para mostrar que adotá-lo compensa economicamente para uma organização financeira [1](https://doi.org/10.1038/s42254-023-00603-1), [2](https://doi.org/10.1109/JPROC.2025.3574102).
+Mesas de operações com opções acompanham o risco da carteira ao longo do pregão. O VaR 99% de 1 dia mede a perda que a carteira pode sofrer em um dia, mas pode ser recalculado muitas vezes durante o pregão, a cada movimento relevante do mercado. Como o valor das opções não varia linearmente com o preço das ações, esse cálculo costuma ser feito por simulação de Monte Carlo. Enquanto ele não termina, a mesa decide com uma estimativa de risco defasada, e um limite de risco estourado só é percebido, e protegido com hedge, depois que a perda já cresceu.
 
-O problema investigado é como relacionar requisitos técnicos, custos de utilização e benefícios potenciais dessas aplicações, tendo métodos clássicos como referência. A avaliação deve considerar o tamanho do problema, a precisão exigida, o tempo total de processamento e os recursos necessários para obter resultados confiáveis. As estimativas de recursos para precificação de derivativos mostram por que é preciso avaliar a implementação completa, além do ganho algorítmico esperado [3](https://doi.org/10.22331/q-2021-06-01-463).
+A estimação quântica de amplitude precisa de menos amostras que o Monte Carlo clássico para atingir o mesmo erro, o que abre a possibilidade de recalcular o VaR mais rápido [4](https://doi.org/10.1038/s41534-019-0130-6). Essa vantagem está na precisão, não no tamanho da carteira. Para cada ação adicionada, o circuito precisa carregar mais uma dimensão da distribuição de preços, e essa carga consome qubits e portas. Além disso, o tempo de resposta depende do hardware, da correção de erros, da fila e da rede, e a execução quântica custa mais que a clássica [2](https://doi.org/10.1109/JPROC.2025.3574102), [3](https://doi.org/10.22331/q-2021-06-01-463).
 
-Neste trabalho, **viabilidade técnica** é a capacidade de executar uma aplicação com a precisão e o prazo exigidos. A **viabilidade econômica** será medida pelo benefício incremental líquido da adoção em relação a uma solução clássica adequada, descontados os custos adicionais. Esse benefício pode vir de despesas computacionais menores, de menor tempo de processamento ou de uma melhoria mensurável na qualidade da solução. Um ganho de desempenho não será tratado automaticamente como aumento de lucro.
+O problema investigado tem duas partes. A primeira é saber até quantas ações na carteira a estimação quântica de amplitude ainda calcula o VaR mais rápido que o Monte Carlo clássico, considerando a carga dos dados. A segunda é saber quanto vale, em dinheiro, recalcular o VaR mais cedo, e qual custo a execução quântica precisa atingir para que esse valor cubra a diferença de custo. A literatura estima recursos e tempos de execução, mas não diz quanto vale ter a estimativa de risco um segundo antes. Este trabalho mede esse valor com um modelo de decaimento calibrado em dados históricos.
 
-A **ampliação do acesso**, associada à ideia de democratização da tecnologia, será analisada inicialmente por três indicadores: custo de utilização, disponibilidade de recursos em serviços de nuvem e necessidade de infraestrutura própria. Esses indicadores entram como possíveis facilitadores da adoção, sem pressupor acesso universal nem benefício econômico garantido.
+Neste trabalho, há **viabilidade técnica** para uma carteira de N ações quando a estimação quântica de amplitude entrega o VaR com o mesmo erro do método clássico em menos tempo. Há **viabilidade econômica** quando o ganho obtido por recalcular o VaR mais cedo supera o custo adicional da execução quântica. O **custo de equilíbrio** X(N) é o custo máximo por execução quântica que mantém essa condição para uma carteira de N ações. A **ampliação do acesso** é tratada como a trajetória do custo de acesso à computação quântica, por serviços em nuvem ou infraestrutura própria, em direção a X(N).
 
 ## 3. Pergunta de pesquisa
 
-**Em quais condições técnicas e econômicas a computação quântica pode se tornar viável para aplicações no setor financeiro, em comparação com métodos clássicos, e como diferentes cenários de evolução tecnológica e ampliação do acesso podem influenciar essa viabilidade ao longo do tempo?**
+**Para uma carteira de opções sobre N ações cujo VaR 99% de 1 dia é recalculado ao longo do pregão, quanto a execução quântica precisa custar para que o ganho de recalcular mais rápido cubra a diferença de custo em relação ao Monte Carlo clássico, e até qual N essa vantagem existe?**
 
 ## 4. Objetivo geral
 
-Investigar as condições técnicas e econômicas para a viabilidade da computação quântica no setor financeiro, considerando seus potenciais benefícios em relação aos métodos clássicos e cenários de ampliação do acesso à tecnologia.
+Estimar, em função do número de ações N, o custo de equilíbrio a partir do qual o recálculo intradiário do VaR 99% de 1 dia de uma carteira de opções por estimação quântica de amplitude se torna economicamente vantajoso em relação ao Monte Carlo clássico, e projetar em que horizonte esse custo pode ser atingido.
 
 ## 5. Objetivos específicos
 
-1. Mapear as aplicações financeiras investigadas na literatura, começando pela otimização de carteiras, pela análise de risco e pela precificação de ativos e derivativos, para escolher um recorte de aprofundamento.
-2. Identificar os métodos clássicos de referência e os benefícios atribuídos às abordagens quânticas, separando propostas teóricas, simulações, experimentos em hardware e estimativas de recursos.
-3. Levantar os requisitos técnicos e os componentes de custo das aplicações selecionadas, incluindo preparação de dados, execução, tratamento de erros e integração com recursos clássicos, conforme as evidências disponíveis.
-4. Definir critérios de comparação que relacionem custo total, tempo de processamento, precisão e qualidade da solução, indicando os casos em que há dados suficientes para estimar benefícios monetários.
-5. Construir cenários de evolução tecnológica e de custos de acesso e examinar como eles afetam os limites de viabilidade e, quando os dados permitirem, os horizontes temporais de adoção.
-6. Analisar as limitações das estimativas e sua sensibilidade às premissas adotadas, incluindo a possibilidade de não haver viabilidade no horizonte considerado.
+1. Implementar o cálculo do VaR 99% de 1 dia de uma carteira de opções sobre N ações por Monte Carlo clássico, quasi-Monte Carlo e estimação quântica de amplitude, com o mesmo erro-alvo.
+2. Medir em simulador, para valores pequenos de N, os qubits, as portas e a profundidade do circuito quântico, separando a carga da distribuição do restante, e extrapolar esses recursos para valores maiores de N.
+3. Estimar os tempos de resposta clássico e quântico em função de N, incluindo fila e rede, e os custos de cada execução.
+4. Calibrar o modelo de decaimento com um backtest do recálculo intradiário do VaR e do hedge em dados históricos, simulando diferentes atrasos.
+5. Calcular X(N), identificar a faixa de N em que há vantagem de tempo e analisar a sensibilidade dos resultados às premissas.
+6. Projetar, em cenários de evolução do hardware, dos custos de acesso e dos métodos clássicos, quando o custo quântico pode atingir X(N), incluindo cenários em que isso não ocorre no horizonte considerado.
 
-## 6. Hipótese
+## 6. Hipóteses
 
-Nesta etapa não há hipótese formal. A pesquisa é exploratória, e a aplicação específica, as variáveis e o modelo de comparação ainda não foram escolhidos. Uma hipótese testável será formulada depois dessa delimitação.
+**H1:** Existe um número de ações N* acima do qual o tempo de carga da distribuição faz a estimação quântica de amplitude levar tanto ou mais tempo que o Monte Carlo clássico para atingir o mesmo erro, de modo que a vantagem de tempo e o ganho do recálculo mais rápido desaparecem.
 
-A análise não pressupõe que a computação quântica se tornará economicamente vantajosa no período investigado. Se os cenários examinados não mostrarem viabilidade, esse também é um resultado válido.
+**H0:** Na faixa de N testada, a estimação quântica de amplitude é mais rápida que o Monte Carlo clássico para todo N.
+
+O valor de N* depende do cenário de hardware, e por isso a hipótese será testada em cada cenário. A análise não pressupõe que a computação quântica se tornará economicamente vantajosa no período investigado. Se nenhum cenário mostrar viabilidade, esse também é um resultado válido.
 
 ## 7. Resumo inicial
 
-A computação quântica tem motivado pesquisas sobre aplicações no setor financeiro, mas identificar possíveis ganhos computacionais exige avaliar, em conjunto, requisitos técnicos e custos de adoção. Este trabalho investiga as condições técnicas e econômicas para a viabilidade da computação quântica nesse setor, considerando benefícios potenciais em relação aos métodos clássicos e cenários de ampliação do acesso à tecnologia. Propõe-se uma pesquisa exploratória baseada em revisão da literatura e análise de cenários, começando pela otimização de carteiras, pela análise de risco e pela precificação de ativos e derivativos. A revisão orientará a escolha de um recorte e o levantamento de indicadores de custo total, tempo de processamento, precisão e qualidade das soluções. A ampliação do acesso será examinada por fatores como custo de utilização, disponibilidade de recursos em nuvem e necessidade de infraestrutura própria. Quando houver dados suficientes, serão estimados limites de viabilidade e horizontes temporais condicionados a premissas explícitas. A contribuição pretendida é um conjunto de critérios para avaliar a adoção da tecnologia que separe potencial algorítmico, execução prática e benefício econômico. Por se tratar de uma proposta inicial, ainda não há resultados nem conclusões sobre a viabilidade das aplicações.
+A estimação quântica de amplitude precisa de menos amostras que o Monte Carlo clássico para atingir o mesmo erro, o que poderia acelerar o recálculo intradiário do VaR de carteiras de opções. A execução quântica, porém, custa mais, e o circuito que carrega a distribuição de preços cresce com o número de ações. Este trabalho investiga, em função do número de ações N, quanto a execução quântica precisa custar para que o ganho de recalcular o VaR 99% de 1 dia mais rápido cubra essa diferença de custo. O VaR será calculado por Monte Carlo, quasi-Monte Carlo e estimação quântica de amplitude com o mesmo erro, e os recursos do circuito quântico, com a carga separada do restante, serão medidos em simulador para N pequeno e extrapolados. O valor de recalcular mais cedo será estimado por um modelo de decaimento, com o valor da informação instantânea e a meia-vida da estimativa de risco como parâmetros, calibrado por um backtest com atrasos simulados. O resultado é a curva do custo de equilíbrio X(N), a faixa de N em que há vantagem de tempo e uma projeção condicional de quando o custo quântico pode atingir X(N). Por se tratar de uma proposta inicial, ainda não há resultados.
 
-**Palavras-chave:** computação quântica; setor financeiro; viabilidade econômica; vantagem quântica; análise de cenários.
+**Palavras-chave:** computação quântica; estimação quântica de amplitude; Value at Risk; carteira de opções; custo de equilíbrio.
 
 ## 8. Abstract inicial
 
-Quantum computing has motivated research into financial applications, but assessing potential computational gains requires weighing technical requirements and adoption costs together. This study investigates the technical and economic conditions under which quantum computing may become viable in the financial sector, considering potential benefits over classical methods and scenarios of broader access to the technology. The study is exploratory, based on a literature review and scenario analysis, and starts with portfolio optimization, risk analysis, and asset and derivative pricing. The review will guide the choice of a narrower scope and the collection of indicators for total cost, processing time, accuracy, and solution quality. Broader access will be examined through usage costs, cloud resource availability, and the need for dedicated infrastructure. Where data allow, feasibility thresholds and time horizons will be estimated under explicit assumptions. The intended contribution is a set of criteria for assessing adoption that separates algorithmic potential, practical execution, and economic benefit. As this is an initial research proposal, it reports no findings or conclusions about application viability.
+Quantum amplitude estimation needs fewer samples than classical Monte Carlo to reach the same error, which could speed up intraday recalculation of the VaR of option portfolios. Quantum execution, however, costs more, and the circuit that loads the price distribution grows with the number of stocks. This study investigates, as a function of the number of stocks N, how much quantum execution must cost for the gain from recalculating the 1-day 99% VaR faster to cover that cost difference. VaR will be computed by Monte Carlo, quasi-Monte Carlo, and quantum amplitude estimation at the same error, and the resources of the quantum circuit, with data loading separated from the rest, will be measured in a simulator for small N and extrapolated. The value of recalculating earlier will be estimated with a decay model, parameterized by the value of instantaneous information and the half-life of the risk estimate, and calibrated through a backtest with simulated delays. The outputs are the break-even cost curve X(N), the range of N with a time advantage, and a conditional projection of when quantum cost may reach X(N). As this is an initial research proposal, it reports no findings.
 
-**Keywords:** quantum computing; financial sector; economic viability; quantum advantage; scenario analysis.
+**Keywords:** quantum computing; quantum amplitude estimation; Value at Risk; option portfolio; break-even cost.
 
 ## 9. Introdução
 
-Problemas financeiros exigem métodos computacionais para representar incertezas, avaliar instrumentos e tomar decisões sob restrições. A literatura sobre computação quântica para finanças examina como algoritmos quânticos poderiam contribuir para essas tarefas, especialmente em modelagem estocástica, otimização e aprendizado de máquina. A revisão de Herman et al. (2023) apresenta aplicações e limitações dessas abordagens e é usada aqui como base para examinar sua utilidade em problemas financeiros [1](https://doi.org/10.1038/s42254-023-00603-1).
+A literatura sobre computação quântica para finanças examina como algoritmos quânticos poderiam contribuir para modelagem estocástica, otimização e aprendizado de máquina. A revisão de Herman et al. (2023) apresenta aplicações e limitações dessas abordagens e inclui a análise de risco por simulação entre elas [1](https://doi.org/10.1038/s42254-023-00603-1).
 
-Woerner e Egger (2019) propõem usar a estimação quântica de amplitude na avaliação de risco e na precificação de instrumentos financeiros. O estudo trata de medidas como *Value at Risk* e *Conditional Value at Risk* e discute a relação entre a convergência do algoritmo e a profundidade do circuito. Os resultados permitem examinar ganhos algorítmicos em tarefas tradicionalmente resolvidas com simulação de Monte Carlo, mas não mostram, por si só, que adotar a técnica em operações financeiras seja rentável [4](https://doi.org/10.1038/s41534-019-0130-6).
+Woerner e Egger (2019) propõem usar a estimação quântica de amplitude para calcular *Value at Risk* e *Conditional Value at Risk*. O algoritmo converge mais rápido que a simulação de Monte Carlo clássica: para um erro-alvo eps, o número de amostras cai da ordem de 1/eps^2 para a ordem de 1/eps. Os autores representam a distribuição de incerteza com um circuito de carga e discutem como a convergência se relaciona com a profundidade do circuito [4](https://doi.org/10.1038/s41534-019-0130-6). O custo desse circuito de carga cresce com o número de variáveis de risco, que, numa carteira de opções, inclui uma variável por ação.
 
-Para passar de uma proposta algorítmica a uma aplicação útil, é preciso estimar os recursos necessários para executá-la. Chakrabarti et al. (2021) fazem essa estimativa para casos de precificação de derivativos e identificam obstáculos de implementação que afetam a possibilidade de vantagem quântica. O estudo mostra que a viabilidade depende do número de qubits lógicos, da profundidade dos circuitos e do tempo de execução, e não pode ser inferida apenas da complexidade assintótica do algoritmo [3](https://doi.org/10.22331/q-2021-06-01-463).
+Chakrabarti et al. (2021) estimam os recursos necessários para obter vantagem quântica na precificação de derivativos e identificam obstáculos de implementação. O estudo mostra que a viabilidade depende do número de qubits lógicos, da profundidade dos circuitos e do tempo de execução, e não pode ser inferida apenas da complexidade assintótica do algoritmo [3](https://doi.org/10.22331/q-2021-06-01-463). O modelo de Choi, Moses e Thompson (2025) chega a uma conclusão parecida em termos gerais: reduzir o número de operações não garante menor tempo de solução, porque o resultado depende da combinação entre algoritmo, hardware e escala do problema [2](https://doi.org/10.1109/JPROC.2025.3574102). Mejia et al. (2025), em um preprint, apresentam uma ferramenta que compara vantagem econômica quântica sob premissas variáveis de hardware, correção de erros, custos e algoritmos, sem fixar uma data única que valha para qualquer aplicação [5](https://doi.org/10.48550/arXiv.2508.21031).
 
-A mesma distinção aparece no modelo de Choi, Moses e Thompson (2025), que relaciona a eficiência dos algoritmos às diferenças de velocidade entre sistemas clássicos e quânticos. Nesse modelo, reduzir o número de operações não garante menor tempo de solução, pois o resultado depende da combinação entre algoritmo, hardware e escala do problema. Por isso, a comparação deve usar uma alternativa clássica adequada ao caso analisado [2](https://doi.org/10.1109/JPROC.2025.3574102).
+Esses trabalhos medem tempo, qubits e profundidade de circuito, mas não convertem uma resposta mais rápida em retorno financeiro, e não medem como a carga dos dados limita a vantagem à medida que a carteira cresce. Em uma mesa de opções, uma estimativa de risco perde valor à medida que o mercado se move: quanto mais tarde o VaR atualizado chega, mais tarde vem o hedge.
 
-No plano econômico, esta pesquisa se interessa pelo benefício incremental que uma organização obtém ao adotar uma abordagem quântica. Para o recorte escolhido, serão examinados os custos de acesso e integração e os possíveis benefícios operacionais, com precisão e qualidade comparáveis. Essa definição admite casos em que uma execução mais rápida gera valor, desde que a relação entre desempenho e benefício monetário seja demonstrada ou declarada como premissa. Sem esses dados, a comparação ficará restrita a indicadores de custo e desempenho e não afirmará retorno financeiro efetivo.
+Este trabalho compara o recálculo intradiário do VaR 99% de 1 dia de uma carteira de opções por estimação quântica de amplitude e por métodos clássicos, em função do número de ações, e converte a diferença de tempo em ganho financeiro com um modelo de decaimento calibrado em dados históricos. As contribuições pretendidas são:
 
-Estimar quando essas condições poderão ser satisfeitas também exige explicitar as incertezas. Mejia et al. (2025), em um preprint, apresentam uma ferramenta de análise de vantagem econômica quântica que permite variar premissas sobre hardware, correção de erros, conectividade, custos e algoritmos. A ferramenta estrutura comparações condicionais, sem fixar uma data única que valha para qualquer aplicação [5](https://doi.org/10.48550/arXiv.2508.21031).
+1. a medição da parcela de recursos do circuito quântico gasta na carga da distribuição em função do número de ações, para o cálculo do VaR de carteiras de opções;
+2. um modelo que converte o tempo de recálculo do VaR em ganho financeiro, com parâmetros calibrados por backtest;
+3. a curva do custo de equilíbrio X(N) e a faixa de N em que existe vantagem de tempo, com uma projeção condicional de quando o custo quântico pode atingir X(N);
+4. código e dados em repositório público, para que os resultados possam ser reproduzidos.
 
-Neste artigo, a ampliação do acesso será examinada como possível mudança nas condições de adoção, a partir dos custos de utilização, da disponibilidade de serviços em nuvem e da necessidade de infraestrutura própria. Esses fatores são dimensões de análise, e não se presume que sua evolução baste para garantir viabilidade. Os cenários também incluirão melhorias dos métodos clássicos, para não comparar uma tecnologia quântica em evolução com uma referência clássica artificialmente estática.
+## 10. Modelo proposto
 
-O objetivo deste trabalho é, portanto, investigar as condições técnicas e econômicas para a viabilidade da computação quântica no setor financeiro, considerando seus potenciais benefícios em relação aos métodos clássicos e cenários de ampliação do acesso à tecnologia. As áreas candidatas iniciais são a otimização de carteiras, a análise de risco e a precificação de ativos e derivativos. A aplicação escolhida para aprofundamento dependerá da existência de evidências comparáveis e da possibilidade de definir critérios verificáveis.
+Para uma carteira de N ações, o valor de uma estimativa de risco cai com o tempo que se leva para obtê-la:
 
-O trabalho combina uma revisão da literatura com análise de cenários. A revisão registrará as fontes consultadas, os critérios de seleção e as premissas dos estudos incluídos, separando evidências experimentais de projeções. A análise de cenários variará parâmetros de desempenho, custo e acesso de forma documentada, com análise de sensibilidade e cenários em que a viabilidade não é atingida. Estimativas temporais, se houver, serão apresentadas como resultados condicionais, válidos apenas para as aplicações e premissas examinadas. A contribuição pretendida é uma avaliação fundamentada das condições de adoção, a ser refinada ao longo da pesquisa.
+```
+V(tau) = V0 * exp(-lambda * tau),    lambda = ln(2) / h
+
+dR(N) = V0 * ( exp(-lambda * tau_q(N)) - exp(-lambda * tau_c(N)) )
+
+Adoção vantajosa quando:   dR(N) > C_q(N) - C_c(N)
+Custo de equilíbrio:       X(N) = C_c(N) + dR(N)
+```
+
+Os termos do modelo são:
+
+- V0: valor de ter o VaR atualizado instantaneamente, em reais por recálculo;
+- h: meia-vida da estimativa de risco, o tempo em que ela perde metade do valor;
+- tau_c(N) e tau_q(N): tempo total até o VaR no método clássico e no quântico, somando cálculo, fila e rede, para o mesmo erro-alvo; tau_q(N) inclui a carga da distribuição;
+- C_c(N) e C_q(N): custo de uma execução em cada plataforma;
+- dR(N): ganho por recálculo obtido com a resposta quântica;
+- X(N): custo máximo por execução quântica que ainda torna a adoção vantajosa.
+
+Para os valores de N em que tau_q(N) é maior ou igual a tau_c(N), dR(N) é nulo ou negativo, e a execução quântica só compensaria se custasse menos que a clássica. O menor N em que isso acontece é o N* da hipótese H1.
+
+## 11. Metodologia
+
+A pesquisa combina implementação em simulador, um backtest de calibração e análise de cenários.
+
+1. Cálculo do VaR: os preços das ações serão modelados por movimento browniano geométrico correlacionado, e a carteira terá opções europeias sobre essas ações. O VaR 99% de 1 dia será calculado por Monte Carlo, por quasi-Monte Carlo e por estimação quântica de amplitude, com o mesmo erro-alvo. Para caber no circuito, a perda da carteira em função dos preços será aproximada por funções lineares por partes, e o erro dessa aproximação será medido contra a reavaliação completa no método clássico.
+2. Recursos quânticos: o circuito será implementado no Qiskit e executado no simulador Aer para N pequeno, limitado pela memória disponível. Para cada N, serão registrados qubits, portas e profundidade, separando a carga da distribuição do restante. O crescimento desses recursos com N será ajustado e extrapolado para valores maiores. Os resultados serão sempre identificados como simulador ideal, simulador com ruído ou estimativa de recursos.
+3. Tempos e custos: tau_c(N) virá da execução dos métodos clássicos em hardware documentado. tau_q(N) virá dos recursos medidos, convertidos em tempo por premissas de velocidade de hardware tiradas da literatura [3](https://doi.org/10.22331/q-2021-06-01-463), mais fila e latência de rede. C_c(N) e C_q(N) virão de preços publicados de serviços em nuvem.
+4. Backtest de calibração: o recálculo intradiário do VaR e o hedge disparado por estouro de limite serão simulados sobre dados históricos de ações e opções, com diferentes atrasos entre o movimento do mercado e o VaR atualizado. A fonte dos dados será definida conforme disponibilidade e custo. O ajuste de uma exponencial ao resultado do hedge em função do atraso fornecerá V0 e h.
+5. Custo de equilíbrio e cenários: com os parâmetros calibrados, o modelo calculará X(N) e N*. A análise de sensibilidade variará h, V0, o erro-alvo e as premissas de hardware. Cenários de evolução do hardware quântico, dos custos de acesso e dos métodos clássicos indicarão quando C_q(N) pode ficar abaixo de X(N), com resultados condicionais às premissas de cada cenário.
+
+As variáveis independentes são o número de ações N, o método (Monte Carlo, quasi-Monte Carlo ou estimação quântica de amplitude), o erro-alvo e o cenário de hardware. As variáveis dependentes são os recursos do circuito, a parcela gasta na carga, tau_c(N), tau_q(N), dR(N) e X(N). Ficam fixos o modelo de preços, a composição da carteira por ação, o nível de confiança de 99%, o horizonte de 1 dia, o período dos dados históricos e as versões de software. Como a estimação quântica de amplitude e o Monte Carlo são aleatórios, cada configuração será repetida com várias sementes, e os resultados serão apresentados com média e desvio padrão.
+
+A referência clássica é o melhor método razoável para uma carteira não linear. Monte Carlo e quasi-Monte Carlo serão ajustados com o mesmo esforço dado ao método quântico. O VaR paramétrico não serve como referência, porque supõe uma carteira linear.
+
+Se os dados históricos não estiverem disponíveis, V0 e h serão tratados como premissas, e a análise de sensibilidade passará a ser o resultado principal. Se o simulador não comportar valores de N suficientes para ajustar o crescimento dos recursos, a extrapolação usará estimativas analíticas do custo do circuito de carga.
+
+## 12. Ameaças à validade
+
+- Validade interna: as premissas de velocidade do hardware quântico determinam tau_q(N). Por isso, os resultados serão apresentados por cenário, e não como um valor único.
+- Validade externa: a calibração de V0 e h vale para a estratégia de hedge e o período testados. Outras mesas e outros períodos podem ter meias-vidas diferentes, e a análise de sensibilidade indicará o quanto X(N) muda nesses casos.
+- Validade de construto: a aproximação linear por partes pode alterar o VaR calculado no circuito. O erro dessa aproximação será reportado junto com os resultados.
+- Validade de conclusão: a extrapolação dos recursos para N maior depende de poucos pontos medidos em simulador. O ajuste será apresentado com seu intervalo de confiança.
 
 ## Referências
 
