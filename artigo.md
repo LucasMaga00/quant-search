@@ -8,38 +8,32 @@ Orientadores: Erinaldo Fonseca e Bryan Ferreira
 
 ## Resumo
 
-Bancos acompanham o Value at Risk (VaR) para controlar limites de risco, e em carteiras de opções ele costuma ser estimado por Monte Carlo. A estimação quântica de amplitude atinge o mesmo erro com quadraticamente menos amostras, e estudos anteriores estimaram os recursos quânticos necessários, mas nenhum converteu uma resposta mais rápida em valor financeiro. Este trabalho estima o custo de equilíbrio $X(N)$, o maior custo por execução quântica que ainda compensa recalcular o VaR 99% de 1 dia mais cedo, para carteiras de opções sobre $N$ ações. Um backtest sobre 2 anos de barras de 1 minuto de 64 ações americanas estima o custo do atraso como $L(d) = c\,d^{\beta}$, com $\beta$ entre 0,67 e 0,76, medido entre 1 e 30 minutos; o ganho por recálculo vem da extrapolação dessa lei para atrasos de milissegundos a segundos. Um modelo de portas T da estimação quântica, com a mesma carteira e o mesmo erro-alvo do Monte Carlo, mostra que, com carga por aritmética, a carga da distribuição consome de 90% a 99% das portas, e que o método quântico só entrega o VaR antes do clássico com $3{,}5 \times 10^{11}$ a $2{,}7 \times 10^{14}$ portas T por segundo, ao menos 3.500 vezes acima de $10^{8}$. Para uma mesa com US\$100 milhões de limite de VaR, a partir de 1,04 a 2,2 vezes essa taxa o preço atual de nuvem por segundo, se valesse para hardware tolerante a falhas, já cobriria a execução; o que limita a adoção é a velocidade do hardware. Para mesas de US\$1 milhão, o preço também passa a pesar. Os resultados dependem de constantes de ordem de grandeza no modelo quântico e de uma carteira sintética no cálculo do VaR.
+Este trabalho estima a taxa de empate e o teto econômico da estimação quântica de amplitude no VaR intradiário de carteiras de opções. Comparam-se Monte Carlo e quasi-Monte Carlo com um modelo lógico e um estimador tolerante a falhas que inclui profundidade e fábricas paralelas. O erro clássico de 1% é verificado entre 50 sementes; o tempo de 0,1% é extrapolado. Considerando ambos os alvos, o requisito agregado varia de $7{,}1\times10^{11}$ a $3\times10^{14}$ portas T/s. Um backtest mede o custo de uma regra de corte com atrasos entre 1 e 30 minutos. Abaixo dessa escala, cinco formas funcionais produzem tetos econômicos distintos. Esses valores são cenários condicionais à forma assumida e à transferência do indicador aproximado de VaR para a reavaliação completa. As metas de preço não são cotações de hardware tolerante a falhas.
 
-**Palavras-chave:** computação quântica; estimação quântica de amplitude; Value at Risk; carteira de opções; custo de equilíbrio.
+**Palavras-chave:** estimação quântica de amplitude; Value at Risk; recursos tolerantes a falhas; custo do atraso; cenários econômicos.
 
 ## Abstract
 
-Quantum amplitude estimation requires quadratically fewer samples than Monte Carlo for the same error. Banks track Value at Risk (VaR) to control risk limits, and for option portfolios it is usually estimated by Monte Carlo. Previous studies estimated the quantum resources this would need, but none converted a faster answer into financial value. This study estimates the break-even cost $X(N)$, the largest cost per quantum execution that still pays for recalculating the 1-day 99% VaR earlier, for option portfolios on $N$ stocks. A backtest on 2 years of 1-minute bars for 64 US stocks estimates the cost of delay as $L(d) = c\,d^{\beta}$, with $\beta$ between 0.67 and 0.76, measured between 1 and 30 minutes; the gain per recalculation comes from extrapolating this law to delays of milliseconds to seconds. A T-gate model of quantum estimation, with the same portfolio and error target as Monte Carlo, shows that, with arithmetic loading, loading the distribution takes 90% to 99% of the gates, and that the quantum method only delivers the VaR before the classical one at $3.5 \times 10^{11}$ to $2.7 \times 10^{14}$ T gates per second, at least 3,500 times above $10^{8}$. For a desk with a US\$100 million VaR limit, from 1.04 to 2.2 times that rate the current cloud price per second, if it applied to fault-tolerant hardware, would already cover the execution, so hardware speed is what limits adoption. For US\$1 million desks, price also matters. The results depend on order-of-magnitude constants in the quantum model and on a synthetic portfolio in the VaR calculation.
+This study estimates the break-even throughput and economic ceiling of quantum amplitude estimation for intraday VaR of option portfolios. Monte Carlo and quasi-Monte Carlo are compared with a logical model and a fault-tolerant estimator accounting for depth and parallel magic-state factories. The classical 1% error target is checked across 50 seeds; runtime for 0.1% is extrapolated. Across both targets, the aggregate requirement ranges from $7.1\times10^{11}$ to $3\times10^{14}$ T gates/s. A backtest measures a risk-limit rule's cost for delays of 1 to 30 minutes. Below that interval, five functional forms produce different economic ceilings. These are scenarios conditional on the assumed functional form and on transferring the approximate VaR indicator to full revaluation. Price targets are not quotations for fault-tolerant hardware.
 
-**Keywords:** quantum computing; quantum amplitude estimation; Value at Risk; option portfolio; break-even cost.
+**Keywords:** quantum amplitude estimation; Value at Risk; fault-tolerant resources; latency cost; economic scenarios.
 
 ## 1. Introdução
 
-O Value at Risk (VaR) de nível 99% e horizonte de 1 dia é a perda que uma carteira só supera em 1% dos dias, e bancos o usam para fixar e acompanhar limites de risco [[1]](#referências). Em carteiras de opções, o valor das posições não é linear no preço das ações, e o VaR costuma ser estimado por Monte Carlo: sorteiam-se cenários de preço e reavalia-se a carteira em cada um [[2]](https://doi.org/10.1007/978-0-387-21617-1). Este trabalho considera uma mesa que recalcula o VaR ao longo do pregão: enquanto o cálculo roda, ela decide com a última estimativa disponível, e um limite estourado só é percebido, e protegido com hedge, depois do cálculo.
+O Value at Risk (VaR) de nível 99% e horizonte de 1 dia é a perda que uma carteira só supera em 1% dos dias, e bancos o usam para acompanhar limites de risco [[1]](#referências). Em carteiras de opções, o valor das posições não é linear no preço das ações, e o VaR pode ser estimado por Monte Carlo: sorteiam-se cenários e reavalia-se a carteira em cada um [[2]](https://doi.org/10.1007/978-0-387-21617-1). Considera-se uma mesa que recebe estimativas ao longo do pregão e reduz suas posições quando o VaR informado supera um limite.
 
-O tempo desse cálculo define a janela para qualquer ganho de velocidade. Neste trabalho, o VaR de uma carteira de 64 ações com 10 opções cada, com erro de 1%, levou 0,64 s num notebook, e o de 512 ações levou 10 s (seção 8.1). A janela é estreita, e por isso o valor de cada fração de segundo precisa ser medido. Carteiras com opções sem fórmula fechada exigem mais trabalho por cenário e levam mais tempo.
+A estimação quântica de amplitude reduz quadraticamente o número de consultas necessário para estimar uma probabilidade com erro dado [[3]](https://doi.org/10.1090/conm/305/05215), [[4]](https://doi.org/10.1098/rspa.2015.0301). Essa propriedade motivou aplicações em derivativos [[5]](https://doi.org/10.1103/PhysRevA.98.022321), [[6]](https://doi.org/10.22331/q-2020-07-06-291) e risco [[7]](https://doi.org/10.1038/s41534-019-0130-6). A vantagem em consultas, porém, depende do custo da preparação da distribuição, da aritmética e da correção de erros [[8]](https://doi.org/10.22331/q-2021-06-01-463), [[9]](https://doi.org/10.1103/PhysRevE.103.063302).
 
-A estimação quântica de amplitude atinge o mesmo erro do Monte Carlo com quadraticamente menos amostras [[3]](https://doi.org/10.1090/conm/305/05215), [[4]](https://doi.org/10.1098/rspa.2015.0301), e foi proposta para precificar derivativos [[5]](https://doi.org/10.1103/PhysRevA.98.022321), [[6]](https://doi.org/10.22331/q-2020-07-06-291) e para calcular o VaR [[7]](https://doi.org/10.1038/s41534-019-0130-6). Na precificação de derivativos, a vantagem exigiria cerca de 8 mil qubits lógicos e profundidade T de 54 milhões, com o programa executado na ordem de um segundo [[8]](https://doi.org/10.22331/q-2021-06-01-463). Numa carteira de opções, cada ação é mais uma variável de risco que o circuito precisa carregar, e esse carregamento pode anular a vantagem [[9]](https://doi.org/10.1103/PhysRevE.103.063302).
+A pergunta deste estudo é: **que taxa agregada de portas T é necessária para empatar com o Monte Carlo e o quasi-Monte Carlo no VaR de carteiras de opções sobre $N$ ações, e qual é o teto de custo por execução que poderia ser justificado pelo recebimento antecipado dessa informação, sob cenários explícitos de custo do atraso?**
 
-Esses trabalhos estimam recursos e tempos, mas não convertem uma resposta mais rápida em valor financeiro, nem medem, no mesmo problema, como a carga da distribuição limita a vantagem quando a carteira cresce. Este trabalho investiga, assim, a seguinte pergunta: **para uma carteira de opções europeias sobre $N$ ações, sob quais cenários de hardware e de valor da informação o ganho de recalcular o VaR 99% de 1 dia por estimação quântica de amplitude cobre a diferença de custo em relação ao Monte Carlo e ao quasi-Monte Carlo, e qual é o maior custo por execução, $X(N)$, que mantém essa vantagem?**
+São separados dois resultados. O requisito técnico $r^*(N)$ relaciona o trabalho lógico quântico ao tempo clássico medido; uma estimativa tolerante a falhas examina também a profundidade e a produção paralela de estados mágicos. O teto econômico $X_{\max}(N)$ é condicional a uma regra de decisão e à forma de $L(d)$ fora da escala observada. Ele não é uma estimativa de lucro realizável com hardware disponível.
 
-Para isso, propõe-se estimar a curva de custo de equilíbrio $X(N)$ e a faixa de $N$ com vantagem de tempo, em relação ao Monte Carlo e ao quasi-Monte Carlo, sob diferentes cenários de hardware e de valor da informação. A comparação desconsidera fila e rede dos provedores de nuvem, como numa máquina dedicada, mas cobra cada execução pelo preço por segundo da nuvem. Há viabilidade técnica quando a estimação quântica entrega o VaR com o mesmo erro em menos tempo, e viabilidade econômica quando o ganho de recalcular mais cedo supera o custo adicional.
+As hipóteses são verificadas nas combinações explicitamente testadas:
 
-O efeito de $N$ pode ir nos dois sentidos. Choi, Moses e Thompson argumentam que a vantagem algorítmica do quântico só compensa a velocidade por operação do clássico em problemas maiores [[10]](https://doi.org/10.1109/JPROC.2025.3574102), o que favoreceria carteiras grandes; o quasi-Monte Carlo, que perde eficiência quando a dimensão cresce [[2]](https://doi.org/10.1007/978-0-387-21617-1), também piora o lado clássico com $N$. No sentido contrário, carregar $N$ variáveis com correlação genérica exige da ordem de $N^2$ multiplicações [[8]](https://doi.org/10.22331/q-2021-06-01-463), enquanto o Monte Carlo reavalia $N \times K$ opções por cenário, um custo linear em $N$. A primeira hipótese aposta no segundo efeito. **H1**: existe um $N^*$ acima do qual a carga da distribuição faz a estimação quântica levar tanto ou mais tempo que o melhor método clássico, para o mesmo erro; se ela já for mais lenta no menor $N$ testado, H1 vale de forma trivial, com $N^*$ igual ao menor $N$, e o resultado de interesse passa a ser a velocidade de hardware que a tornaria vantajosa. **H0**: a estimação quântica é mais rápida que o melhor método clássico em toda a faixa de $N$ testada. A segunda hipótese trata da parte econômica. **H2**: mesmo com hardware instantâneo, o preço por porta T de equilíbrio, $p_{T,\max}(N)$, fica ao menos uma ordem de grandeza abaixo do preço atual de execução quântica em nuvem convertido para portas T a $10^8$ portas T por segundo, para todo $N$ testado. Como a vantagem quântica está no número de amostras para um erro dado, as hipóteses são testadas com erro-alvo de 1% e de 0,1% do VaR.
+- **H1:** para erro-alvo de 1% e $8 \leq N \leq 512$, a inclinação do ajuste de $\log r^*$ contra $\log N$ é maior com Cholesky do que com fator único, tanto contra Monte Carlo quanto contra quasi-Monte Carlo. A hipótese é refutada se a desigualdade falhar em qualquer uma das duas referências. **H0:** em pelo menos uma das referências, a inclinação de Cholesky é menor ou igual à de fator único.
+- **H2:** nas duas formas de carga por aritmética e nos erros-alvo de 1% e 0,1%, $r^*(N)$ supera $10^8$ portas T/s em todos os $N$ testados, contra ambas as referências clássicas. Um único caso com $r^* \leq 10^8$ refuta a hipótese. O resultado de 0,1% usa o tempo clássico extrapolado e é apresentado separadamente.
 
-As contribuições são:
-
-1. um backtest sobre 2 anos de barras de 1 minuto de 64 ações americanas, que estima a lei do custo do atraso $L(d) = c\,d^{\beta}$;
-2. um modelo de recursos da estimação quântica de amplitude para o VaR de $N$ ações, com a carga da distribuição separada do restante e o número de qubits por ação definido pelo erro-alvo;
-3. a taxa de portas T e o preço por porta T que tornariam o método quântico vantajoso, em função de $N$ e do tamanho da mesa;
-4. código e dados derivados em repositório público; as barras de mercado brutas são baixadas pelo próprio código, conforme os termos do provedor.
-
-A seção 2 apresenta a fundamentação teórica e a seção 3 a revisão bibliográfica. A seção 4 formaliza o modelo de custo de equilíbrio, e as seções 5 a 7 descrevem a metodologia, os experimentos e as métricas. A seção 8 traz os resultados, a seção 9 as ameaças à validade e a seção 10 as conclusões. A seção 11 descreve o código e os dados.
+As contribuições são a medição do tempo clássico com validação do erro-alvo, a decomposição dos recursos quânticos por forma de carga, a estimativa física condicional ao escalonamento lógico e a comparação de cenários econômicos de latência. O backtest usa 2 anos de barras de 1 minuto de 64 ações americanas; a carteira de opções é sintética. O código e os dados derivados estão disponíveis em [github.com/LucasMaga00/quant-search](https://github.com/LucasMaga00/quant-search).
 
 ## 2. Fundamentação teórica
 
@@ -69,11 +63,15 @@ Carregar a distribuição é preparar um estado cujas amplitudes ao quadrado sã
 
 ### 2.5 Computação tolerante a falhas
 
-Com correção de erros, como no código de superfície, as portas de Clifford são baratas, e a porta T exige estados mágicos produzidos em fábricas dedicadas [[16]](https://doi.org/10.1103/PRXQuantum.2.010103), [[17]](https://doi.org/10.48550/arXiv.2211.07629). Um Toffoli custa 7 portas T na decomposição usual [[18]](https://doi.org/10.1017/CBO9780511976667), e rotações arbitrárias são aproximadas por sequências de portas T com comprimento proporcional a $\log_2(1/\text{erro})$ [[19]](https://arxiv.org/abs/1403.2975). O tempo de execução fica limitado pela taxa de produção de portas T. Por isso a contagem de portas T é a unidade de custo deste trabalho, e a taxa de portas T por segundo é a variável de hardware.
+Com correção de erros, a execução de portas T requer estados mágicos produzidos por fábricas de destilação [[16]](https://doi.org/10.1103/PRXQuantum.2.010103). A **contagem T** mede o trabalho total, enquanto a **profundidade T** mede as camadas dependentes que não podem ser executadas simultaneamente. Fábricas paralelas podem aumentar a oferta de estados, mas não removem as dependências do algoritmo. Uma taxa agregada de portas, isoladamente, não determina o tempo físico.
+
+Beverland et al. relacionam recursos lógicos a arquiteturas físicas, correção de erros e destilação [[17]](https://doi.org/10.48550/arXiv.2211.07629). Este trabalho executa o estimador local do QDK para modelos de blocos com escalonamento explícito [[31]](https://learn.microsoft.com/en-us/azure/quantum/quickstart-microsoft-resources-estimator). A decomposição de referência usa 7 portas T por Toffoli [[18]](https://doi.org/10.1017/CBO9780511976667) e 130 portas T por rotação com erro de síntese $10^{-13}$, aproximação compatível com crescimento logarítmico do custo de síntese [[19]](https://arxiv.org/abs/1403.2975). O estimador converte esse modelo em recursos físicos; não constitui síntese independente do oráculo completo.
 
 ### 2.6 Custo da latência
 
-Se o preço segue um passeio aleatório, o movimento típico num intervalo $d$ cresce com $\sqrt{d}$. Moallemi e Saglam derivam o custo da latência na execução de ordens em função da volatilidade e do atraso [[20]](https://doi.org/10.1287/opre.2013.1165). Aqui o custo do atraso é estimado nos dados como $L(d) = c\,d^{\beta}$: $\beta = 0{,}5$ corresponde à escala do passeio aleatório, e $\beta = 1$ a um custo proporcional ao tempo.
+O movimento típico de um passeio aleatório cresce com $\sqrt d$, mas essa propriedade dos preços não determina o custo de uma regra de negociação. Moallemi e Saglam relacionam latência, volatilidade e execução de ordens [[20]](https://doi.org/10.1287/opre.2013.1165). Aqui, a intervenção só ocorre quando o VaR informado ultrapassa um gatilho; a posição reduzida e o hedge afetam os resultados dos minutos seguintes. O custo depende, portanto, da frequência de cruzamento do limite, da intensidade dos cortes e da trajetória posterior.
+
+A forma $L(d)=cd^\beta$ é uma parametrização empírica dessa regra entre 1 e 30 minutos, e não uma consequência teórica do expoente $H$ dos retornos. Os dados não identificam sua continuação abaixo de 1 minuto. Nessa escala, são comparadas hipóteses de potência, degrau e exponencial; os valores monetários obtidos são cenários condicionais a essas formas.
 
 ## 3. Revisão bibliográfica
 
@@ -85,259 +83,275 @@ Chakrabarti et al. mostram, na precificação de derivativos, que a vantagem dep
 |---|---|---|---|
 | Rebentrost et al. [[5]](https://doi.org/10.1103/PhysRevA.98.022321); Stamatopoulos et al. [[6]](https://doi.org/10.22331/q-2020-07-06-291) | precificação de derivativos | algoritmo e circuitos | sem tempo de hardware nem valor da resposta |
 | Woerner e Egger [[7]](https://doi.org/10.1038/s41534-019-0130-6) | VaR e CVaR | algoritmo e simulação com poucos qubits | sem tempo de hardware nem carga para $N$ grande |
-| Egger et al. [[22]](https://doi.org/10.1109/TC.2020.3038063) | risco de crédito com $K$ ativos | recursos em função de $K$ | sem valor monetário da resposta |
+| Egger et al. [[22]](https://doi.org/10.1109/TC.2020.3038063) | risco de crédito | recursos em função de $K$ | sem valor monetário da resposta |
 | Chakrabarti et al. [[8]](https://doi.org/10.22331/q-2021-06-01-463) | precificação de derivativos | qubits, profundidade T e relógio necessário | um derivativo, sem custo econômico |
 | Stamatopoulos et al. [[23]](https://doi.org/10.22331/q-2022-07-20-770) | gregas e risco de mercado | redução de requisitos | sem custo econômico |
 | Herbert [[9]](https://doi.org/10.1103/PhysRevE.103.063302); Carrera Vazquez e Woerner [[13]](https://doi.org/10.1103/PhysRevApplied.15.034027) | carga de distribuições | custo da preparação de estado | sem aplicação específica |
 | Babbush et al. [[16]](https://doi.org/10.1103/PRXQuantum.2.010103) | ganhos quadráticos em geral | tempo de portas no código de superfície | sem aplicação financeira |
 | Choi et al. [[10]](https://doi.org/10.1109/JPROC.2025.3574102); Mejia et al. [[24]](https://doi.org/10.48550/arXiv.2508.21031) | vantagem quântica em geral | quando o quântico supera o clássico | sem valor do tempo de resposta |
 | Moallemi e Saglam [[20]](https://doi.org/10.1287/opre.2013.1165) | execução de ordens | custo da latência | sem relação com computação |
+| Stamatopoulos et al. [[28]](https://arxiv.org/abs/2404.10088); Beverland et al. [[17]](https://doi.org/10.48550/arXiv.2211.07629) | VaR de derivativos; estimação física | recursos, relógio lógico e custo de correção de erros | sem calibração da regra intradiária de corte |
+| Iaconis et al. [[29]](https://doi.org/10.1038/s41534-024-00805-0); Xie e Ben-Ami [[30]](https://arxiv.org/abs/2507.20317) | carga de gaussianas | circuitos estruturados e precisão | exigem novo orçamento de erros para esta carteira |
 
-Nenhum desses trabalhos combina os recursos em função de $N$, incluindo a carga, com o valor monetário de receber a resposta mais cedo, e é essa combinação que este trabalho faz.
+Stamatopoulos et al. analisam VaR e CVaR de derivativos com estimação de amplitude e processamento quântico de sinais, incluindo requisitos de recursos e de relógio lógico [[28]](https://arxiv.org/abs/2404.10088). Esse trabalho aproxima a revisão da aplicação estudada, mas não calibra o valor monetário de uma regra intradiária de corte. Beverland et al. [[17]](https://doi.org/10.48550/arXiv.2211.07629) fornecem a ligação entre recursos lógicos e físicos usada na implementação do estimador local [[31]](https://learn.microsoft.com/en-us/azure/quantum/quickstart-microsoft-resources-estimator).
+
+Na preparação de estado, Iaconis, Johri e Zhu usam estados de produto de matrizes para aproximar distribuições normais, analisando fontes de erro e profundidade [[29]](https://doi.org/10.1038/s41534-024-00805-0). Xie e Ben-Ami combinam rotações e transformada quântica de Fourier para aproximar gaussianas [[30]](https://arxiv.org/abs/2507.20317). São alternativas relevantes porque a carga domina o modelo aqui adotado; suas contagens não são intercambiáveis sem recalibrar a precisão. Elas integram a revisão, mas não são implementadas neste estudo.
+
+A lacuna examinada é a combinação, no mesmo cenário de carteira, de trabalho lógico dependente de $N$, tempo clássico e teto monetário condicional a uma regra de decisão. A comparação econômica é uma análise de cenários, não uma demonstração de vantagem disponível.
 
 ## 4. Modelo proposto
 
-Decidir com uma estimativa de risco defasada custa mais quanto maior o atraso $\tau$, e a forma dessa relação é estimada nos dados. $L(\tau)$ é a perda média diária a mais quando o VaR chega com atraso $\tau$, em dólares por US\$1 milhão de limite de VaR. Para uma mesa com limite $V$ e um recálculo por minuto (390 por pregão), o ganho por recálculo de usar a resposta quântica é
+### 4.1 Requisito técnico
 
-$$L(\tau) = c\,\tau^{\beta} \tag{3}$$
+Se $T_q(N)$ é o trabalho total em portas T de um VaR e $\tau_c(N,K)$ é o tempo clássico com o mesmo erro-alvo, a taxa agregada necessária para empatar os tempos é
 
-$$\Delta R(N, K) = \frac{V}{10^6} \cdot \frac{L\big(\tau_c(N, K)\big) - L\big(\tau_q(N)\big)}{390} \tag{4}$$
+$$r^*(N,K)=\frac{T_q(N)}{\tau_c(N,K)}. \tag{3}$$
 
-A adoção é vantajosa quando o ganho supera a diferença de custo, e o custo de equilíbrio é o maior custo quântico que mantém essa condição:
+No modelo de vazão, $\tau_q=T_q/r$. Essa relação é um cenário de taxa efetiva entregue ao programa, sem fila nem rede. Com execução paralela, a condição $r>r^*$ é necessária, mas não suficiente: a profundidade e os ciclos de correção de erros também limitam o tempo. E3 apresenta a estimativa física desses limites em separado.
 
-$$\Delta R(N, K) > C_q(N) - C_c(N, K) \tag{5}$$
+### 4.2 Cenários econômicos
 
-$$X(N, K) = C_c(N, K) + \Delta R(N, K) \tag{6}$$
+$L(d)$ é o aumento da perda média diária provocado pelo atraso $d$, em dólares por US\$1 milhão de limite de VaR. Para limite da mesa $V$ e frequência desejada $F=390$ recálculos por dia,
 
-Com uma taxa de $r$ portas T por segundo, o tempo quântico é $\tau_q(N) = T_q(N)/r$, e $X$ depende de $r$ por meio de $\tau_q$. Daí saem o preço por segundo e por porta T de equilíbrio e a taxa que empata os tempos:
+$$\Delta R(N,K)=\frac{V}{10^6}\frac{L(\tau_c(N,K))-L(\tau_q(N))}{F}, \tag{4}$$
 
-$$p^*(N, K) = \frac{X(N, K)}{\tau_q(N)}, \qquad p_T^*(N, K) = \frac{X(N, K)}{T_q(N)} \tag{7}$$
+$$X(N,K)=C_c(N,K)+\Delta R(N,K). \tag{5}$$
 
-$$r^*(N, K) = \frac{T_q(N)}{\tau_c(N, K)} \tag{8}$$
+Uma execução com custo $C_q<X$ é economicamente favorável dentro do cenário assumido. Os custos são por execução; $C_c$ usa a premissa de US\$0,10 por hora de vCPU [[27]](https://aws.amazon.com/ec2/pricing/on-demand/). Com hardware instantâneo, o teto é
 
-No limite de hardware instantâneo ($\tau_q \to 0$), o custo de equilíbrio atinge seu teto, $X_{\max} = C_c + \frac{V}{10^6} L(\tau_c)/390$, e o preço por porta T, o seu, $p_{T,\max} = X_{\max}/T_q$. A taxa $r_{IBM}$ é a menor $r$ em que $p^*$ alcança o preço por segundo cobrado hoje em nuvem.
+$$X_{\max}(N,K)=C_c(N,K)+\frac{V}{10^6}\frac{L(\tau_c(N,K))}{F}. \tag{6}$$
 
-- $c$ e $\beta$: escala e expoente do custo do atraso, estimados no backtest; o aumento do ES de 97,5% da perda diária, que mede risco de cauda, entra na análise de sensibilidade;
-- $N$ e $K$: número de ações e de opções por ação; o método clássico reavalia $N \times K$ opções em cada cenário, enquanto no circuito a perda de cada ação vem de uma tabela de $2^n$ valores, que não depende de $K$;
-- $\tau_c(N, K)$ e $\tau_q(N)$: tempo de cálculo até o VaR, com o mesmo erro, sem fila nem rede;
-- $T_q(N)$: portas T de uma estimação quântica do VaR;
-- $C_c(N, K)$ e $C_q(N)$: custo de uma execução em cada plataforma, o tempo de cálculo multiplicado pelo preço por segundo da nuvem. O ganho anual é $\Delta R \times 390 \times 252$.
+$$p^*(N,K)=\frac{X(N,K)}{\tau_q(N)},\qquad p_{T,\max}(N,K)=\frac{X_{\max}(N,K)}{T_q(N)}. \tag{7}$$
 
-O Monte Carlo divide os cenários entre processadores: com $P$ núcleos, $\tau_c$ cai para $\tau_c/P$ e $C_c$ não muda, porque o tempo total de processamento é o mesmo. A comparação com um computador clássico de custo equivalente, como em Mejia et al. [[24]](https://doi.org/10.48550/arXiv.2508.21031), multiplica $r^*$ por $P$. Os resultados usam uma única máquina, sem paralelização explícita, o caso mais favorável ao quântico.
+$p^*$ e $p_{T,\max}$ são metas de preço condicionais. O valor de US\$1,60/s documentado na versão anterior para a nuvem IBM [[26]](https://www.ibm.com/quantum/pricing) é mantido apenas como referência hipotética $p_{\rm ref}$. Não é uma cotação de hardware tolerante a falhas. $r_{\rm ref}$ designa a menor taxa em que $p^*$ atinge ou supera esse preço hipotético, sem afirmar que tal hardware ou preço estejam disponíveis.
 
-Quando $\tau_q(N) \ge \tau_c(N, K)$, $\Delta R$ é nulo ou negativo, e o quântico só compensaria se custasse menos que o clássico. Para cada taxa de hardware, o menor $N$ em que isso acontece é o $N^*$ da hipótese H1. No restante do texto, $K = 10$, e $X(N)$ designa $X(N, 10)$ numa taxa $r$ dada.
+A lei de potência ajustada é comparada com quatro alternativas. Seja $A=c60^\beta$, o valor ajustado em 60 segundos, com $d$ também em segundos:
+
+$$L_{\rm pot}(d)=cd^\beta,\quad L_b(d)=A(d/60)^b,\quad b\in\{0{,}5;1\}. \tag{8}$$
+
+$$L_{\rm deg}(d)=A\lfloor d/60\rfloor^\beta,\quad L_{\rm exp}(d)=A\frac{1-e^{-d/s}}{1-e^{-60/s}}. \tag{9}$$
+
+As cinco formas valem zero em $d=0$ e coincidem em $d=60$. O parâmetro $s>0$ da exponencial é escolhido para coincidir também com a potência ajustada em $d=1800$; não é estimado em dados subminuto. No degrau, o limiar de 60 segundos é uma hipótese deliberada: nenhuma perda adicional é atribuída a atrasos menores. A comparação testa quanto a conclusão econômica depende da continuação não observada de $L$.
+
+$F=390$ é uma cadência desejada. Quando $\tau_q>60$ s, uma execução sequencial não acompanha essa frequência; ganhos anuais calculados com $390\times252$ são tetos condicionais à capacidade de acompanhar a cadência. Para tempos fora do intervalo observado, os valores de $X$ permanecem projeções, inclusive quando negativos. O recálculo de 1% usa tempos medidos; o de 0,1% é um cenário com tempo clássico extrapolado. No restante do texto $K=10$.
 
 ## 5. Metodologia
 
-Os objetivos específicos correspondem às etapas do estudo:
+O estudo mantém quatro experimentos. E1 calibra e mede o tempo clássico; E2 mede o custo de uma regra de decisão com informação atrasada; E3 estima recursos lógicos e físicos; E4 combina essas entradas em cenários econômicos. As referências clássicas são Monte Carlo (MC) e quasi-Monte Carlo (QMC), comparadas individualmente e pelo menor tempo em cada $N$.
 
-1. calcular o VaR por Monte Carlo, quasi-Monte Carlo e estimação quântica de amplitude com a mesma medida de erro (E1 e E3);
-2. estimar, com um modelo analítico, as portas T e os qubits do circuito em função de $N$, separando a carga da distribuição (E3);
-3. medir tempos clássicos e estimar tempos quânticos em função de $N$ (E1 e E3);
-4. estimar a lei do custo do atraso com um backtest do recálculo do VaR e do hedge, com atrasos simulados (E2);
-5. calcular $X(N)$, $p^*(N)$, $p_{T,\max}(N)$ e a taxa de empate $r^*(N)$, e analisar a sensibilidade à medida do custo do atraso, à carteira e ao tamanho da mesa (E4);
-6. indicar, em cenários de hardware, a que velocidade e preço o método quântico passa a ser vantajoso (E4).
+### 5.1 E1: calibração do VaR clássico
 
-Os três métodos usam a mesma medida de erro: o desvio padrão da estimativa do VaR, com erro-alvo $\delta = \varepsilon \cdot \mathrm{VaR}$ e $\varepsilon$ de 1% ou 0,1%. No Monte Carlo e no quasi-Monte Carlo, o desvio é medido entre 50 sementes; no quasi-Monte Carlo, cada semente é um embaralhamento independente da sequência de Sobol. Na estimação quântica, $\delta$ vira um erro de probabilidade pela equação (2), e o modelo usa $\pi/\varepsilon_a$ chamadas de Grover por estimação. Três efeitos ficam fora dessa conta. A cota de Brassard et al. com $a \approx 0{,}99$ permite cerca de 5 vezes menos chamadas, o que favoreceria o quântico. Cada uma das 9 a 14 bisseções acerta com probabilidade de ao menos 81%, e garantir todas exige repetir cada estimação e tomar a mediana, o que multiplica as chamadas por uma ou duas dezenas. E os erros de discretização (até $\delta/2$), de estimação e de resolução da bisseção se somam, de modo que o erro quântico pode chegar a cerca de $2{,}5\delta$, o que também favorece o quântico. O saldo é de poucas vezes, muito menor que as distâncias encontradas.
+As ações seguem movimento browniano geométrico correlacionado, com preço inicial, volatilidade e correlação sintéticos iguais. Por ação, há cinco straddles vendidos, com strikes de 90% a 110% do preço atual, vencimento de três meses e hedge de delta. A função de referência reavalia as dez opções por Black-Scholes em cada cenário.
 
-O estudo tem quatro experimentos, cada um num notebook do repositório (seção 11).
+O desvio padrão relativo do VaR é medido entre 50 sementes; no QMC, cada semente usa um embaralhamento independente de Sobol. A reta de erro nos três tamanhos piloto fornece apenas uma sugestão inicial de $M$. Novas avaliações próximas do alvo confirmam empiricamente o erro de 1%; o CSV registra a sugestão contínua, o arredondamento, os candidatos avaliados e o $M$ validado. MC pode usar um inteiro; Sobol mantém potências de dois. O erro observado corresponde a dispersão entre estimativas, não a uma certificação do viés do quantil.
 
-1. E1, VaR clássico (`codigo/1_var_classico.ipynb`). As ações seguem movimento browniano geométrico correlacionado, com parâmetros sintéticos iguais para todas. Para cada ação, a carteira tem $K = 10$ opções europeias, em 5 straddles vendidos com strikes de 90% a 110% do preço atual e vencimento de 3 meses, e hedge de delta na própria ação (`codigo/carteira.py`). O VaR é calculado por Monte Carlo e quasi-Monte Carlo [[2]](https://doi.org/10.1007/978-0-387-21617-1), com reavaliação completa das opções por Black-Scholes. Para cada $N$ e método, o erro é medido em três valores de $M$ ($2^{10}$ a $2^{14}$), e a reta $\log(\text{erro}) \times \log(M)$ dá o $M$ necessário, arredondado para a potência de 2 acima, o que pode dobrar $\tau_c$. $\tau_c$ é a mediana de 3 execuções com esse $M$. Para o erro de 0,1%, $\tau_c$ é extrapolado pela mesma reta, até $M$ da ordem de $10^7$, e não medido.
-2. E2, backtest do custo do atraso (`codigo/baixar_dados.py`, `codigo/2_backtest.ipynb`). Os preços das ações são barras de 1 minuto consolidadas de todas as bolsas dos EUA [[25]](https://docs.alpaca.markets/docs/about-market-data-api), das 64 ações com mais open interest em opções na data do download, de 1/11/2024 a 30/10/2026; as opções são sintéticas, reprecificadas por Black-Scholes com a volatilidade realizada. Cada dia é um episódio: a carteira é montada na abertura e encerrada no fechamento. A cada minuto, a mesa recebe o VaR calculado com os preços de $d$ minutos antes e, se ele passa do limite, reduz a carteira inteira pelo fator limite / VaR, recomprando parte dos straddles; o hedge de delta é refeito com a própria ação. O backtest mede, assim, a regra de decisão; o resultado de mercado das opções fica fora dele. O ajuste de $L(d) = c\,d^{\beta}$, com $d$ de 1 a 30 minutos, dá $c$ e $\beta$ por carteira, tanto para a perda média quanto para o ES. O mesmo notebook mede, por ação, o expoente $H$ do movimento de preço em $d$ minutos, para comparar com $\beta$.
-3. E3, recursos quânticos (`codigo/3_var_quantico.ipynb`). Modelo analítico de portas T da estimação de amplitude para o VaR [[7]](https://doi.org/10.1038/s41534-019-0130-6), com a mesma carteira e a mesma medida de erro de E1. A carga é avaliada em três formas: genérica [[12]](https://arxiv.org/abs/quant-ph/0208112), com correlação por Cholesky e com fator único. A perda usa a opção mais barata entre aproximação linear por partes e tabela [[14]](https://doi.org/10.1103/PhysRevX.8.041015). O número de qubits por ação é o menor que mantém o erro de discretização, medido com $N = 1$, abaixo de metade do erro-alvo. O circuito não é simulado: com $N = 64$ ele tem mais de 1.250 qubits lógicos, e um simulador comporta 25 a 30.
-4. E4, custo de equilíbrio (`codigo/4_equilibrio.ipynb`). Combina $\tau_c$ (E1), $c$ e $\beta$ (E2) e $T_q$ (E3) no modelo da seção 4, para cada $N$ e taxa de hardware, e faz a análise de sensibilidade.
+A calibração usa uma identidade algébrica da paridade put-call para avaliar cada straddle uma vez, conferida numericamente contra a função original. O tempo $\tau_c$ continua sendo a mediana de três execuções da reavaliação completa original, sem aproveitar essa redução algébrica no benchmark. O processo de cronometração fixa as bibliotecas numéricas em uma thread. Para 0,1%, o tempo segue extrapolado pela inclinação da lei do erro e é rotulado como tal; não é uma segunda medição de desempenho.
 
-As variáveis independentes são $N$, o método, o erro-alvo, a forma de carga, a taxa de portas T, a medida do custo do atraso e o limite da mesa. As dependentes são $\tau_c$, $H$, $c$, $\beta$, $T_q$, $r^*$, $\Delta R$, $X$, $p^*$ e $p_{T,\max}$. Ficam fixos o modelo de preços, a composição da carteira por ação, o nível de 99%, o horizonte de 1 dia, o período dos dados e as versões de software.
+### 5.2 E2: custo do atraso e cálculo aproximado do VaR
 
-As referências clássicas são o Monte Carlo e o quasi-Monte Carlo, e $r^*$ é calculado contra o mais rápido dos dois em cada $N$ e também contra o Monte Carlo puro. O VaR paramétrico fica de fora porque supõe perda linear, o que a carteira com delta zerado viola por construção.
+São usados preços de 64 ações americanas em barras consolidadas de 1 minuto [[25]](https://docs.alpaca.markets/docs/about-market-data-api), de 1/11/2024 a 30/10/2026. Cada dia é um episódio: a carteira sintética de opções é montada na abertura e encerrada no fechamento, com hedge de delta atualizado a cada minuto. O VaR da regra é delta-gama com 1.000 cenários. Ao receber um VaR acima do limite, a mesa reduz a carteira pelo fator limite/VaR informado, e a posição apenas diminui no dia. São comparados atrasos de 0, 1, 2, 5, 10 e 30 minutos.
+
+O limite é o percentil 90 do VaR sem atraso. Ele define um gatilho relativo que permite observar intervenções sem manter a carteira permanentemente limitada. Aproximadamente 10% das observações da distribuição de referência o superam antes de aplicar as reduções; isso não implica que 10% dos minutos terão cortes efetivos, devido aos empates e à posição cumulativamente reduzida. A frequência dos cortes e a escala de $L$ dependem dessa escolha, que não representa calibração de um limite regulatório.
+
+A diferença de VaR entre E2 e E1/E3 é deliberada. Com delta zerado, o termo de gama descreve a componente quadrática local da perda, reduzindo o custo de avaliar todos os minutos e carteiras. E2 normaliza o indicador pelo VaR de abertura; uma diferença de escala constante desaparece nessa razão. Erros variáveis, termos de ordem superior e a passagem do tempo, porém, não desaparecem necessariamente. A não linearidade do corte impede afirmar que os erros se cancelam em $L(d)$.
+
+Assim, E2 mede a regra com o indicador aproximado. Transferir seu custo para uma mesa que recebe o VaR por reavaliação completa é uma **premissa do cenário econômico**, não um resultado de equivalência entre os métodos. O objetivo da combinação é avaliar quanto valeria antecipar decisões sob essa premissa; as conclusões monetárias não são apresentadas como medição do custo do atraso do VaR completo.
+
+### 5.3 E3: recursos quânticos
+
+A estrutura lógica segue a estimação de amplitude para a função de distribuição e a busca binária do VaR [[7]](https://doi.org/10.1038/s41534-019-0130-6). A mesma carteira é discretizada com 8 qubits por ação para alvo de 1% e 11 para 0,1%, calibrados com $N=1$. A preparação é considerada em três formas: genérica, correlação por Cholesky e fator único. A perda por ação usa a opção mais barata entre aproximação linear por partes e tabela QROM [[14]](https://doi.org/10.1103/PhysRevX.8.041015).
+
+A contagem de consultas usa $\pi/\varepsilon_a$, com $\varepsilon_a=f(\mathrm{VaR})\delta$ e $\delta=\varepsilon\mathrm{VaR}$. Ela é um orçamento aproximado: a cota de Brassard depende da amplitude, a repetição das bisseções afeta a confiança conjunta e os erros de discretização, estimação e resolução se somam. Não se apresenta o estimador físico como validação desses erros algorítmicos.
+
+O estimador local QDK 1.34.0 [[31]](https://learn.microsoft.com/en-us/azure/quantum/quickstart-microsoft-resources-estimator) recebe dois escalonamentos explícitos: um serial e outro que permite preparar as normais independentes em paralelo, preservando as dependências internas e a aritmética compartilhada. A contagem e a profundidade das primitivas aritméticas são auditadas no QDK. A conversão física usa código de superfície e fábricas de estados mágicos, considerando profundidade, oferta de estados T e orçamento de falha física. A síntese do oráculo financeiro inteiro não foi realizada: a estimativa é condicional ao modelo de blocos, cuja descrição e premissas são exportadas junto com os resultados.
+
+### 5.4 E4: comparação dos cenários
+
+E4 combina $\tau_c$, $T_q$, $c$ e $\beta$ para calcular $r^*$, $X$, $X_{\max}$ e metas de preço. A análise principal usa uma mesa com US\$100 milhões de limite de VaR e compara as cinco formas de $L$ da Seção 4.2. A sensibilidade anterior a tamanho da mesa, carteira e ES é preservada, mas não substitui a comparação entre formas funcionais. Os CSVs identificam extrapolações fora de 60 a 1.800 segundos e a capacidade de completar uma execução em 60 segundos ou em um pregão.
+
+As variáveis independentes são $N$, método, erro-alvo, forma de carga, escalonamento, parâmetros físicos, forma de $L$ e limite da mesa. O modelo de preços, a carteira por ação, o VaR de 99% e horizonte de 1 dia permanecem fixos. O VaR paramétrico linear fica de fora porque a carteira tem delta zerado e perda de gama.
 
 ## 6. Descrição dos experimentos e parâmetros experimentais
 
+As Tabelas 2 e 3 resumem as entradas, as saídas e as premissas mantidas nos quatro experimentos. A configuração física é um cenário declarado, e o preço por segundo é uma meta hipotética.
+
 | Experimento | Entrada | Saída |
 |---|---|---|
-| E1, VaR clássico | carteira sintética, $N$ de 1 a 512 | `dados/tau_c.csv`: $M$ necessário, inclinação do erro, $\tau_c$ |
-| E2, backtest | barras de 1 minuto, $N$ de 1 a 64 | `dados/backtest_L.csv`, `dados/backtest_c_beta.csv`: $L(d)$, $c$, $\beta$ |
-| E3, recursos quânticos | carteira sintética, $N$ de 1 a 512 | `dados/tau_q.csv`: qubits, $T_q$, $r^*$ |
-| E4, equilíbrio | saídas de E1, E2 e E3 | `dados/equilibrio.csv`, `dados/sensibilidade.csv`: $X$, $p_{T,\max}$, $r_{IBM}$ |
+| E1, clássico | carteira sintética, $N=1,2,\ldots,512$ em potências de dois | $M$ validado, erro observado e $\tau_c$ |
+| E2, backtest | barras de 1 minuto, $N=1$ a 64 | $L(d)$ observado, $c$ e $\beta$ |
+| E3, quântico | carteira e erros-alvo; dois escalonamentos | contagem e profundidade T, $r^*$, duração física, qubits e fábricas |
+| E4, cenários | saídas de E1 a E3 e cinco formas de $L$ | $X$, $X_{\max}$, metas de preço e restrições de cadência |
 
 | Parâmetro | Valor | Experimentos |
 |---|---|---|
-| Preço inicial, volatilidade e correlação sintéticos | 100; 25% ao ano; 0,3 | E1, E3 |
-| Taxa livre de risco | 4% ao ano | todos |
-| Opções por ação ($K$) | 10: 5 straddles vendidos, strikes de 90% a 110%, vencimento de 3 meses | todos |
-| Nível e horizonte do VaR | 99%, 1 dia útil | todos |
-| Erro-alvo $\varepsilon$ | 1% do VaR (e 0,1% em E3 e E4) | E1, E3, E4 |
-| Sementes e valores de $M$ na lei do erro | 50; $2^{10}$, $2^{12}$ e $2^{14}$ | E1 |
-| Hardware clássico | Apple arm64, macOS 27.2, numpy 2.5.4, uma máquina, sem paralelização explícita | E1 |
-| Período e frequência dos dados | 1/11/2024 a 30/10/2026, barras de 1 minuto, pregão regular | E2 |
-| Atrasos $d$ | 0, 1, 2, 5, 10 e 30 minutos | E2 |
-| Limite de VaR | percentil 90 do VaR sem atraso | E2 |
-| VaR no backtest | delta-gama com 1.000 cenários | E2 |
-| Volatilidade e correlação | retornos diários de 20 e 60 dias; volatilidade intradiária por média exponencial com meia-vida de 30 minutos | E2 |
-| Carteiras | 64 com $N = 1$; 20 sorteios para $N$ de 2 a 32; 1 com $N = 64$ | E2 |
-| Qubits por ação $n$ | 8 ($\varepsilon$ = 1%) e 11 ($\varepsilon$ = 0,1%) | E3 |
-| Custos aritméticos | somador de $b$ bits: $2b$ Toffolis; Toffoli: 7 portas T; rotação com erro $10^{-13}$: 130 portas T | E3 |
-| Chamadas de Grover por estimação | $\pi/\varepsilon_a$ | E3 |
-| Taxas de portas T | $10^4$, $10^6$ e $10^8$ por segundo | E3, E4 |
-| Preço de nuvem quântica | US\$1,60 por segundo (IBM, pay-as-you-go) [[26]](https://www.ibm.com/quantum/pricing) | E4 |
-| Preço de nuvem clássica | US\$0,10 por hora de vCPU, premissa de ordem de grandeza [[27]](https://aws.amazon.com/ec2/pricing/on-demand/) | E4 |
-| Limite de VaR da mesa $V$ | US\$100 milhões; US\$1 milhão, US\$10 milhões e US\$1 bilhão na sensibilidade | E4 |
+| Preço, volatilidade e correlação sintéticos | 100; 25% ao ano; 0,3 | E1, E3 |
+| Taxa livre de risco; opções por ação | 4% ao ano; 10 opções em cinco straddles, vencimento de três meses | todos |
+| VaR e horizonte | 99%; 1 dia útil | todos |
+| Erro-alvo e sementes | 1% medido no clássico, 50 sementes; 0,1% com tempo clássico extrapolado | E1, E3, E4 |
+| Hardware clássico desta revisão | Apple arm64, macOS 26.3; uma thread nas bibliotecas numéricas; Python 3.12 | E1 |
+| Versões principais | NumPy 2.5.4, SciPy 1.18.1, pandas 3.1.1, Matplotlib 3.11.2 | todos |
+| Dados de mercado | 1/11/2024 a 30/10/2026; barras de 1 minuto, pregão regular | E2 |
+| Atrasos e limite | 0, 1, 2, 5, 10, 30 minutos; percentil 90 do VaR sem atraso | E2 |
+| Indicador de VaR no backtest | delta-gama, 1.000 cenários | E2 |
+| Estimação de volatilidade e correlação | 20 e 60 dias; média exponencial intradiária com meia-vida de 30 minutos | E2 |
+| Carteiras do backtest | 64 com $N=1$; 20 sorteios para cada $N=2$ a 32; uma com $N=64$ | E2 |
+| Qubits por ação; síntese de rotação | 8 para 1%, 11 para 0,1%; 130 portas T por rotação | E3 |
+| Estimador de recursos | QDK 1.34.0 local; código de superfície e destilação de estados T | E3 |
+| Cenários físicos | erros de porta $10^{-4}$ e $10^{-3}$; porta de 50 ns, medição de 100 ns; falha física total até 1% | E3 |
+| Taxas agregadas abstratas | $10^4$, $10^6$, $10^8$ portas T/s; não equivalem a uma previsão física | E3, E4 |
+| Custo clássico e preço-meta hipotético | US\$0,10/vCPU-h; US\$1,60/s como referência, sem cotação de hardware tolerante a falhas | E4 |
+| Limite da mesa | US\$100 milhões; US\$1 milhão, US\$10 milhões e US\$1 bilhão na sensibilidade | E4 |
+| Formas de $L$ | potência ajustada, $\beta=0,5$, $\beta=1$, degrau e exponencial | E4 |
 
 ## 7. Métricas de avaliação
 
+A Tabela 4 define as métricas. A taxa de empate e o teto econômico são as métricas centrais. O teto não pressupõe que um computador capaz de alcançá-lo exista. A estimativa física complementa a taxa agregada com profundidade e produção de estados mágicos.
+
 | Métrica | Definição | Unidade |
 |---|---|---|
-| $\tau_c(N)$ | tempo do melhor método clássico para o VaR com o erro-alvo | s |
-| Inclinação do erro | $b$ em $\log(\text{erro}) = a + b \log M$; $-0{,}5$ no Monte Carlo puro | adimensional |
-| $H$ | expoente de desvio(retorno em $d$ minutos) $\propto d^H$, por ação | adimensional |
-| $L(d)$ | perda média diária com atraso $d$ menos a mesma sem atraso; na sensibilidade, o aumento do ES 97,5% | US\$ por dia, por US\$1 milhão de limite |
-| $c$, $\beta$ | ajuste de $L(d) = c\,d^{\beta}$, com $d$ em segundos; mediana e quartis entre carteiras | $c$: US\$ por dia, por US\$1 milhão, por $\mathrm{s}^{\beta}$; $\beta$: adimensional |
-| $T_q(N)$ | portas T de uma estimação do VaR | portas T |
-| $r^*(N)$, $r_{IBM}(N)$ | taxa que empata os tempos; taxa em que $p^*$ alcança o preço da IBM | portas T por s |
-| $\Delta R(N)$, $X(N)$, $X_{\max}(N)$ | ganho por recálculo; custo de equilíbrio por execução; seu teto com hardware instantâneo | US\$ por recálculo |
-| $p^*(N)$ | preço por segundo de equilíbrio | US\$ por s |
-| $p_{T,\max}(N)$ | preço por porta T de equilíbrio com hardware instantâneo | US\$ por porta T |
+| $\tau_c$, $M$ e erro observado | tempo mediano, cenários e dispersão relativa entre 50 estimativas | s; cenários; % |
+| $T_q$, $D_T$ | contagem e profundidade T do escalonamento declarado | portas; camadas |
+| $r^*=T_q/\tau_c$ | taxa média necessária para empatar; sem garantir suficiência física | portas T/s |
+| $\tau_{\rm FT}$, $Q_{\rm fis}$, $n_{\rm fab}$ | duração, qubits e fábricas paralelas no estimador tolerante a falhas | s; qubits; fábricas |
+| $L(d)$, $c$, $\beta$ | custo observado do atraso e ajuste empírico | US\$/dia por US\$1 milhão; $c$ em US\$/dia por US\$1 milhão por $\mathrm{s}^{\beta}$; $\beta$ adimensional |
+| $X$, $X_{\max}$ | custo de equilíbrio e seu teto com execução instantânea, condicionais à forma de $L$ | US\$/recálculo |
+| $p^*$, $p_{T,\max}$ | metas de preço por segundo e por porta T | US\$/s; US\$/porta T |
+| $r_{\rm ref}/r^*$ | fator de taxa necessário para uma meta hipotética de preço por segundo | adimensional |
+| Capacidade de cadência | conclusão de uma execução em 60 s e dentro de 23.400 s de pregão | indicador lógico |
 
 ## 8. Resultados experimentais
 
-### 8.1 VaR clássico (E1)
+### 8.1 VaR clássico: erro verificado e tempo medido
 
-| $N$ | $M$ (MC) | $\tau_c$ MC (s) | $M$ (QMC) | $\tau_c$ QMC (s) | inclinação QMC |
-|---|---|---|---|---|---|
-| 1 | 131.072 | 0,021 | 2.048 | 0,0005 | $-0{,}98$ |
-| 8 | 131.072 | 0,157 | 65.536 | 0,080 | $-0{,}49$ |
-| 64 | 131.072 | 1,255 | 65.536 | 0,642 | $-0{,}57$ |
-| 128 | 131.072 | 2,510 | 65.536 | 1,291 | $-0{,}57$ |
-| 512 | 131.072 | 10,32 | 131.072 | 10,58 | $-0{,}48$ |
+A Tabela 5 apresenta os tamanhos de amostra, os erros observados e os tempos medidos.
 
-![Erro relativo do VaR em função de M](figuras/var_classico_erro.png)
-
-*Figura 1: erro relativo do VaR em função do número de cenários $M$, para $N$ = 1, 64 e 512.*
-
-![tau_c em função de N](figuras/var_classico_tau.png)
-
-*Figura 2: tempo clássico $\tau_c$ para o erro-alvo de 1%, em função de $N$.*
-
-A inclinação do erro do Monte Carlo ficou entre $-0{,}42$ e $-0{,}56$ em todos os $N$, perto do $-0{,}5$ teórico. O quasi-Monte Carlo erra como $M^{-1}$ com $N = 1$ (inclinação $-0{,}98$), cai para a taxa do Monte Carlo a partir de $N = 4$ e não tem vantagem com $N = 512$. Entre $N = 8$ e $N = 256$, o Monte Carlo leva cerca de 2 vezes o tempo do quasi-Monte Carlo (3,9 vezes em $N = 32$). $\tau_c$ cresce linearmente com $N$, cerca de 0,02 s por ação com o Monte Carlo, e chega a 10 s com $N = 512$. Em $N = 32$, o ajuste do Monte Carlo pediu o dobro de cenários dos vizinhos, uma oscilação do método de ajuste.
-
-### 8.2 Custo do atraso (E2)
-
-O expoente $H$ do movimento de preço ficou entre 0,446 e 0,483 nas 64 ações, com mediana de 0,465: perto do passeio aleatório (0,5) e quase igual entre as ações.
-
-| $N$ | $L$(1 min) | $L$(5 min) | $L$(30 min) | $\beta$: mediana | $\beta$: quartis | $c$: mediana | $\beta$ do ES: mediana |
-|---|---|---|---|---|---|---|---|
-| 1 | 313 | 1.148 | 3.153 | 0,69 | 0,61 a 0,73 | 20,5 | 0,70 |
-| 4 | 303 | 1.072 | 3.047 | 0,70 | 0,64 a 0,75 | 19,8 | 0,77 |
-| 16 | 256 | 997 | 3.052 | 0,73 | 0,72 a 0,75 | 13,9 | 0,82 |
-| 64 | 234 | 958 | 3.019 | 0,76 | - | 11,5 | 0,84 |
-
-*$L$ é a perda média diária a mais, em US\$ por US\$1 milhão de limite; mediana entre as carteiras de cada $N$.*
-
-![Custo do atraso](figuras/backtest.png)
-
-*Figura 3: à esquerda, mediana de $L(d)$, pela perda média, por $N$; no centro, $\beta$ por $N$; à direita, $\beta$ contra $H$ por ação.*
-
-$L$ cresce com o atraso em todas as 165 carteiras. A mediana de $\beta$ fica entre 0,67 e 0,76 conforme $N$ (0,51 a 0,86 entre as ações isoladas), entre a escala da raiz (0,5) e a linear (1), e não acompanha o $H$ de cada ação, o que indica que a forma do custo depende da regra de corte além do movimento do preço. Por US\$1 milhão de limite, $L$(1 min) cai 25% de $N = 1$ para $N = 64$: a diversificação reduz o valor de cada minuto de antecedência. Medido pelo ES de 97,5%, o custo do atraso é de 7 a 14 vezes maior, com $\beta$ entre 0,68 e 0,84, e a queda com $N$ chega a 61%.
-
-### 8.3 Recursos quânticos (E3)
-
-O erro de discretização do VaR, medido com $N = 1$, foi de $-14{,}8\%$, $-10{,}3\%$, $+1{,}48\%$, $-1{,}29\%$, $+0{,}135\%$, $+0{,}38\%$, $-0{,}19\%$, $+0{,}044\%$ e $+0{,}073\%$ com 4 a 12 qubits por ação. O erro não cai de forma monótona, porque o quantil discreto depende do alinhamento da grade; o modelo usa 8 qubits para o erro de 1% e 11 para 0,1%, os menores valores abaixo de metade do erro-alvo. A aproximação linear por partes precisou de 37 a 205 segmentos por ação, e a tabela foi mais barata em todos os casos. Cada estimação do VaR usa 9 a 10 bisseções, cada uma com cerca de 10 mil chamadas de Grover, perto de $10^5$ chamadas no total com erro de 1%.
-
-| $N$ | qubits (Cholesky) | carga: Cholesky / fator único | $T_q$ Cholesky | $T_q$ fator único | $r^*$ Cholesky | $r^*$ fator único |
+| $N$ | $M$ MC | Erro MC (%) | $\tau_c$ MC (s) | $M$ QMC | Erro QMC (%) | $\tau_c$ QMC (s) |
 |---|---|---|---|---|---|---|
-| 1 | 43 | 90% / 94% | $6{,}8 \times 10^{9}$ | $1{,}3 \times 10^{10}$ | $1{,}5 \times 10^{13}$ | $2{,}8 \times 10^{13}$ |
-| 8 | 184 | 91% / 91% | $6{,}9 \times 10^{10}$ | $7{,}1 \times 10^{10}$ | $8{,}6 \times 10^{11}$ | $8{,}9 \times 10^{11}$ |
-| 64 | 1.254 | 95% / 90% | $9{,}7 \times 10^{11}$ | $5{,}1 \times 10^{11}$ | $1{,}5 \times 10^{12}$ | $7{,}9 \times 10^{11}$ |
-| 512 | 9.772 | 99% / 90% | $3{,}4 \times 10^{13}$ | $3{,}9 \times 10^{12}$ | $3{,}3 \times 10^{12}$ | $3{,}8 \times 10^{11}$ |
+| 1 | 115.440 | 0,919 | 0,01535 | 2.048 | 0,549 | 0,0004295 |
+| 8 | 78.206 | 0,945 | 0,07611 | 32.768 | 0,973 | 0,03207 |
+| 32 | 124.766 | 0,867 | 0,4962 | 65.536 | 0,995 | 0,2632 |
+| 64 | 107.258 | 0,903 | 0,8805 | 65.536 | 0,856 | 0,5501 |
+| 256 | 114.159 | 0,876 | 3,834 | 32.768 | 0,901 | 1,111 |
+| 512 | 119.214 | 0,83 | 8,162 | 65.536 | 0,934 | 4,512 |
 
-*Erro-alvo de 1%. Carga: parcela das portas T de cada operador de Grover gasta na carga da distribuição. $T_q$ em portas T por VaR; $r^*$ em portas T por segundo, contra o melhor método clássico.*
+O erro relativo observado ficou entre 0,533% e 0,997%, abaixo do alvo em todos os 20 pares de tamanho e método, com 50 sementes por par. O diagnóstico inclui os pontos piloto e as avaliações próximas do alvo. Em $N=32$, o Monte Carlo usou 124.766 cenários com erro de 0,867%, enquanto a reta de três pontos seguida de arredondamento para potência de dois sugeriria 262.144. O diagnóstico separa esse efeito do tamanho efetivamente validado.
 
-![Taxa de portas T para empatar com o clássico](figuras/var_quantico_taxa.png)
+Com $N=512$, QMC usou 65.536 cenários, erro de 0,934% e tempo de 4,512 s. Nesse tamanho, o QMC permanece mais rápido que o MC nesta medição; a comparação entre os métodos deve usar os tempos calibrados no alvo, em vez de extrapolar somente as inclinações piloto. A identidade algébrica da calibração e o benchmark completo diferiram em menos de $10^{-8}$ na verificação numérica. O alvo de 0,1% não foi cronometrado.
 
-*Figura 4: taxa de portas T que empata o tempo quântico com o clássico, por forma de carga e erro-alvo. As linhas horizontais são os cenários de $10^4$, $10^6$ e $10^8$ portas T por segundo.*
+### 8.2 Custo do atraso observado
 
-Com carga por Cholesky ou por fator único (40 combinações de $N$, erro-alvo e carga), a carga da distribuição consome de 90% a 99% das portas T de cada operador de Grover, sobretudo pelas $2^n$ rotações de cada normal; o cálculo da perda por tabela e o comparador ficam com o restante. Em nenhuma combinação o quântico entrega o VaR antes do clássico nos três cenários de hardware. A taxa de empate fica entre $3{,}5 \times 10^{11}$ e $2{,}7 \times 10^{14}$ portas T por segundo, ao menos 3.500 vezes acima do cenário mais rápido. Com carga genérica, ela chega a $6 \times 10^{27}$ já em $N = 8$. Com Cholesky, a taxa de empate cai até $N = 8$ ($8{,}6 \times 10^{11}$), sobe até $4{,}1 \times 10^{12}$ em $N = 256$ e recua em $N = 512$, porque a carga cresce com $N^2$ e o clássico com $N$; o recuo final, como a queda de $r^*$ com fator único entre $N = 256$ e $N = 512$, vem de o quasi-Monte Carlo perder a vantagem, o que quadruplica $\tau_c$ quando $N$ dobra.
+A Tabela 6 resume o custo observado e os parâmetros da potência ajustada.
 
-Contra o Monte Carlo puro, $r^*$ fica entre $2{,}0 \times 10^{11}$ e $3{,}3 \times 10^{12}$ com erro de 1%, e desce a $2{,}1 \times 10^{11}$ com erro de 0,1% (desconsiderando $N = 32$, cujo ajuste oscila; com ele, $8{,}5 \times 10^{10}$). Nesse caso, diminuir o erro-alvo favorece o quântico, como a teoria prevê, mas a taxa necessária continua ao menos 2.000 vezes acima de $10^8$. Contra o quasi-Monte Carlo, o erro de 0,1% muda pouco a taxa de empate: o clássico precisa de cerca de 10 a 100 vezes mais cenários, e o quântico de 10 vezes mais chamadas, cada uma cerca de 8 vezes mais cara (de 77 mil para 595 mil portas T por operador de Grover com $N = 1$), porque cada ação passa a ter 3 qubits a mais.
+| $N$ | $L$(1 min) | $L$(5 min) | $L$(30 min) | $\beta$ | $c$ |
+|---|---|---|---|---|---|
+| 1 | 313,2 | 1148 | 3153 | 0,687 | 20,5 |
+| 4 | 303,2 | 1072 | 3047 | 0,699 | 19,8 |
+| 16 | 256,4 | 997,4 | 3052 | 0,732 | 13,9 |
+| 64 | 234,4 | 957,6 | 3019 | 0,758 | 11,5 |
 
-### 8.4 Custo de equilíbrio (E4)
+$L$ é a perda média diária adicional em US\$ por US\$1 milhão de limite; a tabela mostra medianas entre carteiras. Os dados de E2 permanecem os da coleta original. A mediana de $\beta$ varia de 0,67 a 0,76; para $N=64$ há uma única carteira. O expoente $H$ dos retornos apresentou mediana de 0,465 nas 64 ações. Não se utiliza uma relação entre $H$ e $\beta$ para prever o comportamento subminuto.
 
-Nos três cenários de hardware, $\Delta R$ é negativo em todo $N$, e portanto $X(N) < C_c$: a $10^8$ portas T por segundo, o quântico chega tão depois do clássico que o atraso custaria ao menos US\$96 por recálculo, e nenhum preço positivo torna a adoção vantajosa. A tabela mostra o teto $X_{\max}(N)$, que supõe hardware instantâneo.
+![Custo do atraso observado e cenários subminuto](figuras/custo_atraso.png)
 
-| $N$ | $\tau_c$ (s) | $X_{\max}$ | ganho anual máximo | $C_c$ | $p_{T,\max}$ (US\$ por porta T) | $r^*$ (portas T/s) | $r_{IBM} / r^*$ |
-|---|---|---|---|---|---|---|---|
-| 1 | 0,0005 | 0,027 | 2,7 mil | $1{,}3 \times 10^{-8}$ | $2{,}1 \times 10^{-12}$ | $2{,}8 \times 10^{13}$ | 1,04 |
-| 8 | 0,080 | 0,68 | 67 mil | $2{,}2 \times 10^{-6}$ | $9{,}7 \times 10^{-12}$ | $8{,}9 \times 10^{11}$ | 1,25 |
-| 64 | 0,642 | 2,1 | 207 mil | $1{,}8 \times 10^{-5}$ | $4{,}2 \times 10^{-12}$ | $7{,}9 \times 10^{11}$ | 1,61 |
-| 512 | 10,3 | 17,3 | 1,7 milhão | $2{,}9 \times 10^{-4}$ | $4{,}5 \times 10^{-12}$ | $3{,}8 \times 10^{11}$ | 2,16 |
+*Figura 1: custo do atraso para a carteira de 64 ações. À esquerda, cinco continuações hipotéticas abaixo de 60 s, sem observações; à direita, os pontos medidos entre 1 e 30 minutos e a potência ajustada. As curvas coincidem no valor ajustado de 60 s. Não se representa dispersão entre carteiras para $N=64$.*
 
-*Carga com fator único, erro-alvo de 1%, perda média, mesa com limite de VaR de US\$100 milhões. $X_{\max}$ e $C_c$ em US\$ por recálculo; ganho anual em US\$, com 390 recálculos por dia e 252 pregões.*
+### 8.3 Trabalho lógico e taxa de empate
 
-![Custo de equilíbrio](figuras/equilibrio.png)
+A Tabela 7 reúne os requisitos lógicos e a taxa de empate.
 
-*Figura 5: à esquerda, teto do ganho e custo clássico por recálculo em função de $N$; à direita, preço por segundo de equilíbrio $p^*$ em função da taxa de portas T, com o preço atual da IBM (tracejado) e os cenários de hardware (linhas verticais).*
+| $N$ | $T_q$ Ch. | $T_q$ F. | $r^*$ Ch. | $r^*$ F. | $D_T$ Ch. | $D_T$ F. |
+|---|---|---|---|---|---|---|
+| 1 | $6{,}8\times10^{9}$ | $1{,}3\times10^{10}$ | $1{,}6\times10^{13}$ | $3\times10^{13}$ | $6{,}4\times10^{9}$ | $6{,}6\times10^{9}$ |
+| 8 | $6{,}9\times10^{10}$ | $7{,}1\times10^{10}$ | $2{,}1\times10^{12}$ | $2{,}2\times10^{12}$ | $1{,}5\times10^{10}$ | $1{,}3\times10^{10}$ |
+| 64 | $9{,}7\times10^{11}$ | $5{,}1\times10^{11}$ | $1{,}8\times10^{12}$ | $9{,}2\times10^{11}$ | $3{,}2\times10^{11}$ | $5{,}4\times10^{10}$ |
+| 512 | $3{,}4\times10^{13}$ | $3{,}9\times10^{12}$ | $7{,}6\times10^{12}$ | $8{,}6\times10^{11}$ | $1{,}8\times10^{13}$ | $3{,}7\times10^{11}$ |
 
-O teto vai de US\$0,03 por recálculo com $N = 1$ a US\$17 com $N = 512$, ou de US\$2,7 mil a US\$1,7 milhão por ano, porque $\tau_c$ cresce com $N$. O custo clássico por recálculo é desprezível, no máximo US\$0,03. Em todas as 40 combinações, $p_{T,\max}$ fica entre $1{,}0 \times 10^{-13}$ e $1{,}0 \times 10^{-11}$ dólares. A IBM cobra hoje US\$1,60 por segundo [[26]](https://www.ibm.com/quantum/pricing); a $10^8$ portas T por segundo, isso equivaleria a $1{,}6 \times 10^{-8}$ dólares por porta, de 1.500 a 160.000 vezes acima.
+Ch. designa Cholesky e F., fator único. $T_q$ está em portas T por VaR; $r^*$, em portas T/s, contra o menor tempo entre MC e QMC; $D_T$ é a profundidade do escalonamento de preparações normais paralelas, com aritmética compartilhada em série. O erro-alvo da tabela é de 1%.
 
-Com erro de 1% e a mesa de US\$100 milhões, $r_{IBM}/r^*$ fica entre 1,04 e 2,2: pouco acima da taxa em que o quântico passa a ser mais rápido que o clássico, o preço atual por segundo já cobriria o custo, então o que limita a adoção é a velocidade do hardware.
+Nas duas cargas por aritmética, a preparação representa de 90% a 99% da contagem T do operador de Grover. Contra a melhor referência clássica em cada combinação, $r^*$ varia de $7{,}1\times10^{11}$ a $3\times10^{14}$ portas T/s, considerando os dois erros-alvo. As referências MC e QMC são extrapoladas separadamente para 0,1% antes de selecionar o menor tempo.
 
-| Caso ($N = 64$, erro de 1%, fator único) | $X_{\max}$ (US\$) | $r_{IBM} / r^*$ |
-|---|---|---|
-| perda média, mesa de US\$100 milhões (base) | 2,1 | 1,61 |
-| ES de 97,5% no lugar da perda média | 10,1 | 1,12 |
-| mesa de US\$1 bilhão | 21 | 1,07 |
-| mesa de US\$10 milhões | 0,21 | 6,5 |
-| mesa de US\$1 milhão | 0,021 | 51 |
+![Taxa agregada necessária para empatar com MC e QMC](figuras/taxa_empate.png)
 
-*Com $N = 8$ e $N = 32$, as carteiras nos quartis de 25% e 75% do teto dão $r_{IBM}/r^*$ entre 1,18 e 1,50; as mesas de US\$1 milhão, de 21 a 38.*
+*Figura 2: taxa agregada $r^*(N)$ para Cholesky e fator único, contra MC e QMC. O segundo painel usa tempos clássicos extrapolados para 0,1%. O eixo vertical é interrompido para distinguir os requisitos calculados dos cenários abstratos de $10^4$, $10^6$ e $10^8$ portas T/s, identificados na faixa inferior. A carga genérica é omitida da escala principal.*
 
-A carteira escolhida e a medida do custo do atraso mudam $r_{IBM}/r^*$ pouco, entre 1,03 e 1,61. O tamanho da mesa muda muito: com US\$1 milhão de limite, o ganho por recálculo é 100 vezes menor, e o hardware precisaria ser de 21 a 51 vezes mais rápido que $r^*$ para o preço atual fechar a conta, de modo que, para mesas pequenas, preço e velocidade pesam juntos.
+A $10^8$ portas T/s, no cenário de vazão com fator único e erro de 1%, uma execução leva aproximadamente 130 s para $N=1$ e 38.759 s para $N=512$. A primeira já ultrapassa um minuto; a segunda ultrapassa as 6,5 horas de pregão. Essas combinações não acompanham a cadência desejada de um recálculo por minuto.
 
-### 8.5 Hipóteses
+### 8.4 Estimativa tolerante a falhas
 
-**H0**, segundo a qual a estimação quântica seria mais rápida em toda a faixa de $N$, é rejeitada: com até $10^8$ portas T por segundo, ela não é mais rápida em nenhum $N$, erro-alvo ou forma de carga, nem contra o quasi-Monte Carlo nem contra o Monte Carlo puro.
+A auditoria de primitivas concretas no QDK contou 7 portas T ou T adjunta por Toffoli, com profundidade 4. Para um somador Cuccaro de $b$ bits, contou $14b$ portas T e profundidade $8b$, nos tamanhos usados pelo modelo. A contagem coincide com os $2b$ Toffolis da estimativa original, mas sua profundidade é menor que a contagem.
 
-**H1** vale na forma trivial prevista na seção 1: nas taxas consideradas não há vantagem nem com $N = 1$, então $N^*$ é o menor $N$ testado, contra as duas referências clássicas. O mecanismo da hipótese aparece na velocidade exigida. A carga é a parte dominante do custo, de 90% a 99% das portas T, e com correlação por Cholesky faz $r^*$ crescer de $8{,}6 \times 10^{11}$ em $N = 8$ para $4{,}1 \times 10^{12}$ portas T por segundo em $N = 256$. Com correlação de fator único, $r^*$ não cresce com $N$.
+| $N$ | Carga | $\tau_{\rm FT}$ (h) | $Q_{\rm fis}$ | Fábricas T |
+|---|---|---|---|---|
+| 1 | Cholesky | 8,144 | 205.124 | 15 |
+| 1 | Fator único | 8,302 | 344.233 | 28 |
+| 64 | Cholesky | 471,1 | 2.244.488 | 47 |
+| 64 | Fator único | 78,08 | 4.516.541 | 148 |
+| 512 | Cholesky | $3{,}277\times10^{4}$ | 14.989.927 | 27 |
+| 512 | Fator único | 618 | 14.679.128 | 143 |
 
-**H2** é confirmada: mesmo com hardware instantâneo, $p_{T,\max}$ fica entre $1{,}0 \times 10^{-13}$ e $1{,}0 \times 10^{-11}$ dólares por porta T, de 1.500 a 160.000 vezes abaixo do preço atual da IBM convertido a $10^8$ portas T por segundo, em todo $N$ testado. A hipótese mede preço a uma taxa fixa; quando a taxa cresce, o preço por porta T de um mesmo preço por segundo cai na mesma proporção, e por isso, acima de $r_{IBM}$, o preço atual por segundo já cobriria a execução para mesas grandes. No plano ($N$, erro-alvo), a região de vantagem não aparece em nenhum ponto testado; diminuir o erro-alvo a aproxima apenas quando a referência é o Monte Carlo puro.
+A Tabela 8 apresenta o ponto de menor duração por tamanho e carga, para erro-alvo de 1%, portas físicas com erro $10^{-4}$, porta de 50 ns e medição de 100 ns, com preparações normais paralelas. O orçamento total de falha física é de 1%. O CSV contém também o escalonamento serial, erro físico $10^{-3}$ e os demais pontos Pareto entre tempo e qubits.
 
-## 9. Ameaças à validade
+No conjunto de estimativas executadas, a menor duração foi de 29.319 s e 0 pontos completaram a tarefa em até 60 s. O número de fábricas, os qubits físicos, a profundidade e a probabilidade de falha são registrados por ponto. São resultados do modelo de blocos e de suas premissas físicas, sem síntese completa do oráculo financeiro.
 
-- Interna: as constantes do modelo quântico (somador de $2b$ Toffolis, 7 portas T por Toffoli, 130 portas T por rotação, $\pi/\varepsilon_a$ chamadas) são aproximações de ordem de grandeza, e a conta de chamadas deixa de fora a cota mais justa de Brassard et al., a repetição das bisseções e a soma dos erros (seção 5). A contagem de qubits omite o registrador de fase da estimação canônica e os qubits auxiliares da tabela e dos somadores. O tempo supõe portas T executadas uma a uma; com fábricas de estados mágicos em paralelo, como na profundidade T usada por Chakrabarti et al. [[8]](https://doi.org/10.22331/q-2021-06-01-463), a taxa efetiva é maior, e o cenário de $10^8$ portas T por segundo é uma escolha. Errar uma constante por 10 vezes move $r^*$ 10 vezes, mas não fecha uma distância de mais de 3.500 vezes. Desconsiderar fila e rede e usar uma única máquina clássica favorece o método quântico; a biblioteca de álgebra linear pode usar mais de um núcleo nas multiplicações de matriz, o que aproxima a referência clássica de $P > 1$. O preço por segundo usado é de hardware sem correção de erros, enquanto $T_q$ supõe hardware tolerante a falhas; por isso $p^*$ e $p_{T,\max}$ devem ser lidos como metas de preço.
-- Externa: $c$ e $\beta$ valem para a regra de corte, o período e as ações testados, e não foram separados por regime de volatilidade. As ações foram escolhidas pelo open interest na data do download, o que introduz viés de sobrevivência e de olhar para o futuro. Só os preços das ações são reais: as opções do backtest são sintéticas, e E1 e E3 usam a carteira sintética, então o equilíbrio combina as duas fontes. Acima de $N = 64$, o equilíbrio usa $c$ e $\beta$ de $N = 64$; como $L$ cai com $N$, isso superestima o ganho e favorece o quântico. O ganho por recálculo vem da extrapolação de $L(d)$, medido entre 1 e 30 minutos, para atrasos de milissegundos a segundos, de 1 a 5 décadas abaixo dos dados; a extrapolação supõe o mesmo $\beta$ nas duas escalas, e a lei de potência não foi comparada com outras formas, como a exponencial ou o degrau.
-- Construto: a estimação quântica não foi executada nem simulada; o número de chamadas vem da cota de Brassard et al. [[3]](https://doi.org/10.1090/conm/305/05215) e a estrutura do circuito de Woerner e Egger [[7]](https://doi.org/10.1038/s41534-019-0130-6). O VaR delta-gama do backtest supõe um choque de 1 dia sem reajuste do hedge, mas a carteira é reajustada a cada minuto e encerrada no fechamento; o ES de 97,5% realizado sem atraso fica em 7% a 9% do limite, e o limite funciona como um gatilho relativo (percentil 90), e não como uma medida de risco calibrada. A perda média mede o custo esperado do atraso; o ES mede o risco de cauda, e somá-lo como valor por dia superestimaria o ganho, por isso ele aparece só na sensibilidade. A referência clássica reavalia todas as opções em cada cenário; para opções europeias, uma tabela de reavaliação por ação deixaria $\tau_c$ quase independente de $K$ e menor, o que pioraria o quântico, então o resultado representa carteiras com opções sem fórmula fechada. O número de qubits por ação foi calibrado com $N = 1$, e o erro de discretização não cai de forma monótona com $n$.
-- Conclusão: o ES de 97,5% de 439 dias se apoia em cerca de 11 dias por carteira; a perda média usa todos os dias. O ajuste do $M$ necessário oscila em alguns $N$ ($N = 32$ no Monte Carlo), o arredondamento para potência de 2 pode dobrar $\tau_c$, o $\tau_c$ com erro de 0,1% é extrapolado, e $\tau_c$ varia cerca de 4% entre execuções.
+### 8.5 Tetos econômicos condicionais
 
-## 10. Conclusão
+| Forma de $L$ | $X_{\max}$ (US\$) | Ganho anual (US\$) | $p_{T,\max}$ (US\$/T) | $r_{\rm ref}/r^*$ |
+|---|---|---|---|---|
+| Potência ajustada | $1{,}88\times10^{0}$ | $1{,}846\times10^{5}$ | $3{,}71\times10^{-12}$ | 1,587 |
+| Potência, $\beta=0,5$ | $6{,}31\times10^{0}$ | $6{,}2\times10^{5}$ | $1{,}25\times10^{-11}$ | 1,264 |
+| Potência, $\beta=1$ | $6{,}04\times10^{-1}$ | $5{,}936\times10^{4}$ | $1{,}19\times10^{-12}$ | 2,457 |
+| Degrau de 60 s | $1{,}53\times10^{-5}$ | 0 | $3{,}02\times10^{-17}$ | $5{,}76\times10^{4}$ |
+| Exponencial | $6{,}25\times10^{-1}$ | $6{,}14\times10^{4}$ | $1{,}23\times10^{-12}$ | 2,409 |
 
-O trabalho mediu, no mesmo problema, o tempo do cálculo clássico do VaR, o valor de receber o VaR mais cedo e o custo quântico em portas T. O backtest mostrou que o atraso tem custo mensurável, com expoente $\beta$ entre 0,67 e 0,76 na perda média, e que a diversificação reduz esse custo por unidade de limite. O modelo de recursos mostrou que a carga da distribuição concentra de 90% a 99% do custo quântico. Com até $10^8$ portas T por segundo, a estimação quântica não chega antes do Monte Carlo em nenhum $N$; ela precisaria de $3{,}5 \times 10^{11}$ a $2{,}7 \times 10^{14}$ portas T por segundo. Para uma mesa de US\$100 milhões, a partir de 1,04 a 2,2 vezes essa taxa o preço atual de nuvem por segundo já cobriria a execução, se valesse para hardware tolerante a falhas; o que falta para a adoção é hardware com essa velocidade. Para mesas de US\$1 milhão, a taxa precisaria ser de 21 a 51 vezes maior que a de empate, e o preço também pesa.
+A Tabela 9 usa $N=64$, fator único, erro de 1% e mesa com US\$100 milhões de limite. O ganho anual é o teto de ganho de informação com execução instantânea e cadência de 390 recálculos por dia, durante 252 dias; exclui a parcela de custo clássico já contida em $X_{\max}$. A referência $p_{\rm ref}=\mathrm{US\$}\,1{,}60$/s é uma meta hipotética. Para o degrau, $r_{\rm ref}$ é a menor taxa que atinge ou supera a meta, podendo ocorrer por salto.
 
-Ficam como trabalhos futuros: validar o algoritmo em simulador para $N = 1$ com $n$ e precisão do acumulador reduzidos, para caber em cerca de 25 qubits; refazer a contagem de portas, com profundidade T e qubits auxiliares, num estimador de recursos tolerante a falhas [[17]](https://doi.org/10.48550/arXiv.2211.07629); avaliar métodos de carga eficientes [[13]](https://doi.org/10.1103/PhysRevApplied.15.034027), que atacam a maior parte do custo; estimar $c$ e $\beta$ por regime de volatilidade, com atrasos abaixo de 1 minuto, e comparar a lei de potência com outras formas; e incluir na referência clássica o paralelismo e a reavaliação por tabela.
+Na potência ajustada, $X_{\max}$ é de US\$1,879 por recálculo. No degrau de 60 s, o ganho de informação é zero quando o tempo clássico é subminuto, e $X_{\max}=C_c$. Potências e exponencial produzem os demais tetos mostrados. Nenhuma dessas continuações subminuto foi medida no backtest. As tabelas completas preservam também a sensibilidade à mesa, às carteiras e ao ES e identificam atrasos fora do intervalo observado.
 
-## 11. Organização dos códigos e dados
+### 8.6 Hipóteses reformuladas
 
-Todo o código e os dados derivados estão no repositório. A ordem de execução está no `README.md`.
+**H1** foi satisfeita nas duas referências. As inclinações de $\log r^*$ contra $\log N$ foram 0,411 e -0,117 para Cholesky e fator único contra MC; contra QMC, foram 0,453 e -0,0745. São coeficientes descritivos no intervalo de $N$ definido na hipótese, sem inferência sobre outros tamanhos.
 
-| Arquivo | Conteúdo | Experimento |
-|---|---|---|
-| `codigo/carteira.py` | carteira sintética e precificação; o bloco principal verifica que a perda é separável por ação | E1, E3 |
-| `codigo/1_var_classico.ipynb` | VaR por Monte Carlo e quasi-Monte Carlo, lei do erro e $\tau_c$ | E1 |
-| `codigo/baixar_dados.py` | download de contratos de opções e barras de 1 minuto da Alpaca; chaves em `.env`, fora do git | E2 |
-| `codigo/2_backtest.ipynb` | $H$ por ação, backtest do corte com atraso, ajuste de $c$ e $\beta$ pela perda média e pelo ES | E2 |
-| `codigo/3_var_quantico.ipynb` | modelo de portas T, qubits, parcela da carga e $r^*$ | E3 |
-| `codigo/4_equilibrio.ipynb` | $X$, $X_{\max}$, $p_{T,\max}$, $r_{IBM}$ e a análise de sensibilidade | E4 |
-| `figuras/` | figuras deste documento, gravadas pelos notebooks | todos |
+**H2** foi satisfeita no domínio testado: o menor requisito entre ambas as referências clássicas, cargas por aritmética, tamanhos e erros-alvo foi $2{,}1\times10^{11}$ portas T/s. A parcela com erro de 0,1% depende de extrapolação do tempo clássico. As hipóteses tratam do requisito lógico de vazão; as durações físicas estão na Seção 8.4.
 
-| Dado | Origem | No repositório |
-|---|---|---|
-| `dados/opcoes_por_acao.csv` | contratos e open interest por ação (Alpaca) | sim |
-| `dados/barras_1m.csv.gz` | 17,4 milhões de barras de 1 minuto (Alpaca, SIP), 212 MB | não; recriado por `codigo/baixar_dados.py` em cerca de 80 minutos, conforme os termos do provedor |
-| `dados/tau_c.csv` | saída de E1 | sim |
-| `dados/backtest_L.csv`, `dados/backtest_c_beta.csv` | saídas de E2 | sim |
-| `dados/tau_q.csv` | saída de E3 | sim |
-| `dados/equilibrio.csv`, `dados/sensibilidade.csv` | saídas de E4 | sim |
+## 9. Discussão
 
-Os notebooks rodam com `uv run --with-requirements requirements.txt jupyter lab`. E1 leva cerca de 8 minutos, E2 cerca de 4, E3 e E4 menos de 1.
+A contagem de consultas da estimação de amplitude não determina a vantagem de tempo por si só. A preparação da distribuição, sua estrutura de correlação, a profundidade e a oferta de estados mágicos entram na comparação. A diferença entre Cholesky e fator único mostra que a dimensão da carteira não basta para caracterizar o custo: a forma da dependência entre os fatores de risco também importa. Os tempos clássicos devem ser calibrados no erro-alvo; o ajuste anterior de três pontos introduzia oscilações que afetavam $r^*$.
+
+Os dados observados de E2 mostram menor custo por unidade de limite ao aumentar a carteira. Essa relação é compatível com efeito de diversificação na regra estudada, mas não estabelece uma lei universal para outras composições ou limites. A regra de corte e a trajetória do hedge impedem deduzir o expoente do custo diretamente do passeio aleatório dos preços.
+
+A parte econômica depende de uma premissa adicional à parte técnica: o valor de atrasos menores que a frequência dos dados. As cinco formas de $L$ geram tetos diferentes, incluindo ganho de informação nulo no cenário degrau. Isso limita a interpretação dos valores monetários como resultados de adoção. O uso do indicador delta-gama em E2 acrescenta a condição de transferibilidade da regra para o VaR por reavaliação completa; essa equivalência não foi demonstrada.
+
+Preços de serviços atuais sem correção de erros não determinam o preço futuro de uma execução tolerante a falhas. As metas de preço servem para indicar condições econômicas desejadas, em conjunto com uma arquitetura que cumpra o prazo. A estimativa física usa parâmetros explícitos de QEC e escalonamento; não é uma previsão de disponibilidade comercial. A taxa média $r^*$ continua sendo um requisito necessário, complementado pelo caminho crítico.
+
+## 10. Ameaças à validade
+
+- **Modelo lógico e físico:** a composição do oráculo, os custos de multiplicação, QROM e síntese de rotações continuam aproximados. A auditoria cobre primitivas e a composição declarada de blocos; não cobre um circuito completo compilado. Os escalonamentos não são alegados ótimos. A abstração física usa layout PSSPC, camadas de lattice surgery e demanda agregada de estados T; não simula picos, estoques ou arranque de fábricas. O orçamento de falha física exclui erros de discretização, síntese e estimação de amplitude. A precisão por ação foi calibrada com $N=1$.
+- **Benchmark clássico:** os 50 resultados por tamanho estimam dispersão amostral; não certificam ausência de viés. O $M$ validado é um tamanho medido que atende ao alvo, não uma prova do menor $M$ possível. Os tempos são de uma máquina e uma thread; fila, rede e paralelismo distribuído não entram. O alvo de 0,1% é extrapolado. A referência completa é deliberadamente preservada no benchmark, embora a carteira permita simplificações algébricas.
+- **Dados e regra de decisão:** as ações foram escolhidas pelo open interest na coleta, com possível viés de sobrevivência e de olhar para o futuro. As opções são sintéticas. Os parâmetros do backtest se aplicam ao período e à regra definidos, incluindo o gatilho no percentil 90. O indicador delta-gama não garante as mesmas decisões que a reavaliação completa. O ES de 97,5% em 439 dias se apoia em cerca de 11 dias de cauda por carteira e permanece uma sensibilidade, não valor esperado adicional.
+- **Extrapolação econômica:** não há observações abaixo de 60 s nem acima de 1.800 s. As formas funcionais são cenários, inclusive quando seus valores se tornam negativos em $X$. Acima de $N=64$, usam-se os parâmetros econômicos de $N=64$, sem evidência de que a diversificação preserve esse custo. A cadência anual exige concluir cada execução em até 60 s ou fornecer capacidade adicional não modelada. O preço-meta não é cotação de hardware tolerante a falhas.
+
+## 11. Conclusão
+
+O estudo estima requisitos técnicos e tetos econômicos do VaR quântico em um cenário de carteiras de opções. A validação do erro clássico revisou os tamanhos de amostra e os tempos de referência. O trabalho lógico quântico continua dominado pela carga da distribuição; a taxa agregada necessária para empatar com o melhor método clássico fica entre $7{,}1\times10^{11}$ e $3\times10^{14}$ portas T/s nos casos testados, incluindo o alvo de 0,1% com tempo clássico extrapolado. A execução do estimador tolerante a falhas acrescenta profundidade, correção de erros, qubits físicos e fábricas paralelas à análise, sob premissas explícitas de arquitetura e composição do circuito.
+
+O backtest mede o custo da regra com atrasos de 1 a 30 minutos. Abaixo dessa escala, o teto monetário varia com a forma assumida para $L(d)$ e permanece condicional à transferência do indicador aproximado de VaR. A viabilidade econômica depende de validar essas premissas e de preços de execução tolerante a falhas que não são conhecidos neste estudo. Os resultados delimitam requisitos e cenários para investigação, sem demonstrar adoção economicamente vantajosa com hardware disponível.
+
+## 12. Organização dos códigos e dados
+
+Código e dados derivados: [github.com/LucasMaga00/quant-search](https://github.com/LucasMaga00/quant-search). A Tabela 10 organiza os arquivos. As dependências têm versões fixadas em `requirements.txt`; a ordem de execução e a compilação IEEE estão no `README.md`.
+
+| Arquivo ou grupo | Conteúdo e reprodução |
+|---|---|
+| `codigo/carteira.py` | carteira e reavaliação completa de referência |
+| `codigo/1_var_classico.ipynb`, `codigo/e1_validacao.py` | calibração, validação e tempo; `dados/tau_c.csv`, `dados/e1_validacao_erro.csv` |
+| `codigo/2_backtest.ipynb` | backtest e ajuste observado; `dados/backtest_L.csv`, `dados/backtest_c_beta.csv` |
+| `codigo/3_var_quantico.ipynb`, `codigo/recursos_tolerantes_falhas.py` | contagem lógica, primitivas e estimação QDK; CSVs de recursos e JSON de premissas |
+| `codigo/avaliar_hipoteses.py` | hipóteses reformuladas; `dados/hipoteses.csv` |
+| `codigo/4_equilibrio.ipynb`, `codigo/cenarios_atraso.py` | cenários e metas; `dados/cenarios_forma_L.csv`, `dados/equilibrio.csv`, `dados/sensibilidade.csv` |
+| `codigo/figuras_artigo.py` | duas figuras vetoriais e prévias em `figuras/` |
+| `artigo.tex`, `referencias.bib` | fonte IEEE editável e bibliografia; compilação descrita no README |
+
+Os preços brutos de 1 minuto não são redistribuídos. `codigo/baixar_dados.py` permite nova coleta mediante credenciais e acesso ao feed do provedor, conforme seus termos; como o universo é consultado na data da coleta, ele pode mudar. Esta revisão conserva os resultados de E2 da coleta original. O notebook passa a exportar também o diagnóstico de $H$ e $\beta$ quando reexecutado com os dados brutos; esse diagnóstico não é usado para inferir a continuação subminuto.
 
 ## Referências
 
@@ -394,3 +408,12 @@ Os notebooks rodam com `uv run --with-requirements requirements.txt jupyter lab`
 [26] IBM, "IBM Quantum pricing plans." [Online]. Disponível: [https://www.ibm.com/quantum/pricing](https://www.ibm.com/quantum/pricing). Acesso em: 4 nov. 2026.
 
 [27] Amazon Web Services, "Amazon EC2 On-Demand Pricing." [Online]. Disponível: [https://aws.amazon.com/ec2/pricing/on-demand/](https://aws.amazon.com/ec2/pricing/on-demand/). Acesso em: 5 nov. 2026.
+
+
+[28] N. Stamatopoulos, B. D. Clader, S. Woerner e W. J. Zeng, "Quantum risk analysis of financial derivatives," arXiv:2404.10088, 2024, doi: [10.48550/arXiv.2404.10088](https://doi.org/10.48550/arXiv.2404.10088).
+
+[29] J. Iaconis, S. Johri e E. Y. Zhu, "Quantum state preparation of normal distributions using matrix product states," *npj Quantum Information*, vol. 10, art. 15, 2024, doi: [10.1038/s41534-024-00805-0](https://doi.org/10.1038/s41534-024-00805-0).
+
+[30] Y. Xie e N. Ben-Ami, "Efficient Gaussian state preparation in quantum circuits," em *IEEE International Conference on Quantum Computing and Engineering*, 2025, pp. 242-248, doi: [10.1109/QCE65121.2025.00035](https://doi.org/10.1109/QCE65121.2025.00035).
+
+[31] Microsoft, "How to install and use the Microsoft Quantum resource estimator." Documentação de `qdk.qre`, versão utilizada 1.34.0. [Online]. Disponível: [Microsoft Learn](https://learn.microsoft.com/en-us/azure/quantum/quickstart-microsoft-resources-estimator). Acesso em: 11 nov. 2026.

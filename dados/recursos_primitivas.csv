@@ -1,0 +1,16 @@
+primitiva,bits,qubits_trace,T_count_trace,T_depth_trace,portas_totais_trace
+toffoli,0,3,7,4,15
+somador_cuccaro,11,24,154,88,375
+somador_cuccaro,12,26,168,96,409
+somador_cuccaro,14,30,196,112,477
+somador_cuccaro,15,32,210,120,511
+somador_cuccaro,16,34,224,128,545
+somador_cuccaro,17,36,238,136,579
+somador_cuccaro,18,38,252,144,613
+somador_cuccaro,19,40,266,152,647
+somador_cuccaro,20,42,280,160,681
+somador_cuccaro,21,44,294,168,715
+somador_cuccaro,22,46,308,176,749
+somador_cuccaro,23,48,322,184,783
+somador_cuccaro,24,50,336,192,817
+somador_cuccaro,25,52,350,200,851

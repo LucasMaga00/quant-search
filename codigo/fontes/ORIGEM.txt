@@ -1,0 +1,5 @@
+TeX Gyre Termes Regular, pacote oficial TeX Gyre.
+Fonte compatível com Times usada nas figuras do modelo IEEE.
+Origem: https://mirrors.ctan.org/fonts/tex-gyre/opentype/texgyretermes-regular.otf
+Licença GUST: https://mirrors.ctan.org/fonts/tex-gyre/doc/GUST-FONT-LICENSE.txt
+Arquivo original sem alterações.
