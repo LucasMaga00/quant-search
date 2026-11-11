@@ -1,0 +1,5 @@
+hipotese,referencia,inclinacao_cholesky,inclinacao_fator_unico,minimo_r_estrela,contraexemplos,satisfeita_no_modelo
+H1,mc,0.41063526494010943,-0.11733491370699012,,,True
+H2,mc,,,212531786497.04688,0.0,True
+H1,qmc,0.4534948437978216,-0.07447533484928165,,,True
+H2,qmc,,,711630743958.4854,0.0,True
